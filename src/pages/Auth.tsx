@@ -64,15 +64,15 @@ export default function AuthPage() {
     }
 
     const validateOAuthApproval = async () => {
-      const { data: applicationData, error } = await supabase
-        .from("pilot_applications")
-        .select("status")
+      const { data: pilotData, error } = await supabase
+        .from("pilots")
+        .select("approval_status")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (error || applicationData?.status !== "approved") {
+      if (error || pilotData?.approval_status !== "approved") {
         await signOut();
-        toast.error("Your application is pending admin approval. Please wait for approval before logging in.");
+        toast.error("Your account is pending admin approval. Please wait for approval before logging in.");
         navigate("/auth", { replace: true });
         return;
       }

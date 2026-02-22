@@ -210,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: pilotData, error: pilotError } = await supabase
       .from("pilots")
-      .select("id")
+      .select("id, approval_status")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -218,27 +218,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error("Could not verify application approval. Please try again.") };
     }
 
-    if (pilotData) {
-      return { error: null };
-    }
-
-    const { data: applicationData, error: applicationError } = await supabase
-      .from("pilot_applications")
-      .select("status")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (applicationError) {
-      await supabase.auth.signOut();
-      return { error: new Error("Could not verify application approval. Please try again.") };
-    }
-
-    if (applicationData?.status === "approved") {
+    if (pilotData?.approval_status === "approved") {
       return { error: null };
     }
 
     await supabase.auth.signOut();
-    return { error: new Error("Your application is still pending admin approval.") };
+    return { error: new Error("Your account is pending admin approval.") };
   };
 
   const signUp = async (email: string, password: string) => {

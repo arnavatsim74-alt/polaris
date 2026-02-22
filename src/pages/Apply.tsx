@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Loader2, ArrowLeft, CheckCircle2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { User } from "@supabase/supabase-js";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import aeroflotLogo from "@/assets/aeroflot-logo.png";
 import { PolarisFooter } from "@/components/PolarisFooter";
@@ -30,6 +31,29 @@ const applicationSchema = z.object({
 });
 
 type ApplicationStatus = "idle" | "pending" | "approved" | "rejected";
+
+const getDiscordProfile = (authUser: User | null) => {
+  const discordIdentity = authUser?.identities?.find((identity) => identity.provider === "discord");
+  const identityData = (discordIdentity?.identity_data || {}) as Record<string, unknown>;
+  const metadata = (authUser?.user_metadata || {}) as Record<string, unknown>;
+
+  const usernameRaw =
+    (typeof identityData.username === "string" && identityData.username) ||
+    (typeof identityData.global_name === "string" && identityData.global_name) ||
+    (typeof identityData.preferred_username === "string" && identityData.preferred_username) ||
+    (typeof metadata.preferred_username === "string" && metadata.preferred_username) ||
+    (typeof metadata.global_name === "string" && metadata.global_name) ||
+    (typeof metadata.name === "string" && metadata.name) ||
+    null;
+
+  const discordUsername = usernameRaw ? usernameRaw.replace(/^@+/, "").trim() : null;
+  const discordUserId =
+    (typeof identityData.sub === "string" && identityData.sub) ||
+    (typeof metadata.provider_id === "string" && metadata.provider_id) ||
+    null;
+
+  return { discordUsername, discordUserId };
+};
 
 export default function ApplyPage() {
   const [fullName, setFullName] = useState("");
@@ -116,6 +140,8 @@ export default function ApplyPage() {
     try {
       let applicantUserId = user?.id;
       let applicantEmail = email;
+      const { discordUsername: oauthDiscordUsername, discordUserId } = getDiscordProfile(user);
+      const normalizedDiscordUsername = (discordUsername || oauthDiscordUsername || "").trim().replace(/^@+/, "");
 
       if (!isExistingDiscordUser) {
         // First create the account
@@ -159,7 +185,8 @@ export default function ApplyPage() {
         experience_level: ifGrade,
         preferred_simulator: isIfatc,
         reason_for_joining: whyJoinAflv,
-        discord_username: discordUsername,
+        discord_username: normalizedDiscordUsername,
+        discord_user_id: discordUserId,
         if_grade: ifGrade,
         is_ifatc: isIfatc,
         ifc_trust_level: ifcTrustLevel,
@@ -209,9 +236,9 @@ export default function ApplyPage() {
   useEffect(() => {
     if (!user) return;
     const metadata = user.user_metadata || {};
-    const discordFromMetadata = metadata.preferred_username || metadata.global_name || metadata.name || "";
-    if (discordFromMetadata && !discordUsername) {
-      setDiscordUsername(String(discordFromMetadata));
+    const { discordUsername: discordFromOAuth } = getDiscordProfile(user);
+    if (discordFromOAuth && !discordUsername) {
+      setDiscordUsername(String(discordFromOAuth));
     }
     if (!fullName) {
       const fullNameFromMetadata = metadata.full_name || metadata.name || metadata.global_name || "";

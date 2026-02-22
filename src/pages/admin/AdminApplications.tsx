@@ -43,37 +43,13 @@ export default function AdminApplications() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async ({ appId, userId, fullName, pid, vatsimId, ivaoId }: any) => {
-      // Create pilot record
-      const { error: pilotError } = await supabase.from("pilots").insert({
-        user_id: userId,
-        pid,
-        full_name: fullName,
-        vatsim_id: vatsimId,
-        ivao_id: ivaoId,
+    mutationFn: async ({ appId, pid }: { appId: string; pid: string }) => {
+      const { error } = await supabase.rpc("approve_pilot_application", {
+        p_app_id: appId,
+        p_pid: pid,
       });
 
-      if (pilotError) throw pilotError;
-
-      // Add pilot role
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: userId,
-        role: "pilot",
-      });
-
-      if (roleError) throw roleError;
-
-      // Update application
-      const { error: appError } = await supabase
-        .from("pilot_applications")
-        .update({
-          status: "approved",
-          assigned_pid: pid,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", appId);
-
-      if (appError) throw appError;
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-applications"] });
@@ -130,11 +106,7 @@ export default function AdminApplications() {
     if (!selectedApp || !assignedPid) return;
     approveMutation.mutate({
       appId: selectedApp.id,
-      userId: selectedApp.user_id,
-      fullName: selectedApp.full_name,
       pid: assignedPid,
-      vatsimId: selectedApp.vatsim_id,
-      ivaoId: selectedApp.ivao_id,
     });
   };
 

@@ -1182,6 +1182,7 @@ export type Database = {
       }
       pilots: {
         Row: {
+          approval_status: Database["public"]["Enums"]["application_status"]
           avatar_url: string | null
           created_at: string | null
           current_rank: string | null
@@ -1198,6 +1199,7 @@ export type Database = {
           vatsim_id: string | null
         }
         Insert: {
+          approval_status?: Database["public"]["Enums"]["application_status"]
           avatar_url?: string | null
           created_at?: string | null
           current_rank?: string | null
@@ -1214,6 +1216,7 @@ export type Database = {
           vatsim_id?: string | null
         }
         Update: {
+          approval_status?: Database["public"]["Enums"]["application_status"]
           avatar_url?: string | null
           created_at?: string | null
           current_rank?: string | null
@@ -1496,6 +1499,10 @@ export type Database = {
       complete_recruitment_with_pid: {
         Args: { p_email?: string | null; p_pid: string; p_token: string }
         Returns: Json
+      }
+      approve_pilot_application: {
+        Args: { p_app_id: string; p_pid: string }
+        Returns: string
       }
       set_recruitment_callsign_details: {
         Args: { p_email?: string | null; p_pid: string; p_token: string }

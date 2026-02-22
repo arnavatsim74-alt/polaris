@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,44 +9,57 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layouts/AppLayout";
 
-import AuthPage from "@/pages/Auth";
-import ApplyPage from "@/pages/Apply";
-import Dashboard from "@/pages/Dashboard";
-import FilePirep from "@/pages/FilePirep";
-import PirepHistory from "@/pages/PirepHistory";
-import RoutesPage from "@/pages/Routes";
-import RoutesOfTheWeek from "@/pages/RoutesOfTheWeek";
-import Leaderboard from "@/pages/Leaderboard";
-import Events from "@/pages/Events";
-import Details from "@/pages/Details";
-import Challenges from "@/pages/Challenges";
-import AflvBonusPage from "@/pages/AflvBonus";
-import Tracker from "@/pages/Tracker";
-import AdminPireps from "@/pages/admin/AdminPireps";
-import AdminRoutes from "@/pages/admin/AdminRoutes";
-import AdminROTW from "@/pages/admin/AdminROTW";
-import AdminEvents from "@/pages/admin/AdminEvents";
-import AdminApplications from "@/pages/admin/AdminApplications";
-import AdminAircraft from "@/pages/admin/AdminAircraft";
-import AdminRanks from "@/pages/admin/AdminRanks";
-import AdminMultipliers from "@/pages/admin/AdminMultipliers";
-import AdminNOTAMs from "@/pages/admin/AdminNOTAMs";
-import AdminSettings from "@/pages/admin/AdminSettings";
-import AdminMembers from "@/pages/admin/AdminMembers";
-import AdminChallenges from "@/pages/admin/AdminChallenges";
-import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
-import AdminSidebarLinks from "@/pages/admin/AdminSidebarLinks";
-import AdminAcademy from "@/pages/admin/AdminAcademy";
-import AdminBonusTiers from "@/pages/admin/AdminBonusTiers";
-import AdminActivity from "@/pages/admin/AdminActivity";
-import Academy from "@/pages/Academy";
-import AcademyCourse from "@/pages/AcademyCourse";
-import AcademyExam from "@/pages/AcademyExam";
-import ActivityPage from "@/pages/Activity";
-import ProfileSettings from "@/pages/ProfileSettings";
-import NotFound from "@/pages/NotFound";
+const AuthPage = lazy(() => import("@/pages/Auth"));
+const ApplyPage = lazy(() => import("@/pages/Apply"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const FilePirep = lazy(() => import("@/pages/FilePirep"));
+const PirepHistory = lazy(() => import("@/pages/PirepHistory"));
+const RoutesPage = lazy(() => import("@/pages/Routes"));
+const RoutesOfTheWeek = lazy(() => import("@/pages/RoutesOfTheWeek"));
+const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
+const Events = lazy(() => import("@/pages/Events"));
+const Details = lazy(() => import("@/pages/Details"));
+const Challenges = lazy(() => import("@/pages/Challenges"));
+const AflvBonusPage = lazy(() => import("@/pages/AflvBonus"));
+const Tracker = lazy(() => import("@/pages/Tracker"));
+const AdminPireps = lazy(() => import("@/pages/admin/AdminPireps"));
+const AdminRoutes = lazy(() => import("@/pages/admin/AdminRoutes"));
+const AdminROTW = lazy(() => import("@/pages/admin/AdminROTW"));
+const AdminEvents = lazy(() => import("@/pages/admin/AdminEvents"));
+const AdminApplications = lazy(() => import("@/pages/admin/AdminApplications"));
+const AdminAircraft = lazy(() => import("@/pages/admin/AdminAircraft"));
+const AdminRanks = lazy(() => import("@/pages/admin/AdminRanks"));
+const AdminMultipliers = lazy(() => import("@/pages/admin/AdminMultipliers"));
+const AdminNOTAMs = lazy(() => import("@/pages/admin/AdminNOTAMs"));
+const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
+const AdminMembers = lazy(() => import("@/pages/admin/AdminMembers"));
+const AdminChallenges = lazy(() => import("@/pages/admin/AdminChallenges"));
+const AdminAnnouncements = lazy(() => import("@/pages/admin/AdminAnnouncements"));
+const AdminSidebarLinks = lazy(() => import("@/pages/admin/AdminSidebarLinks"));
+const AdminAcademy = lazy(() => import("@/pages/admin/AdminAcademy"));
+const AdminBonusTiers = lazy(() => import("@/pages/admin/AdminBonusTiers"));
+const AdminActivity = lazy(() => import("@/pages/admin/AdminActivity"));
+const Academy = lazy(() => import("@/pages/Academy"));
+const AcademyCourse = lazy(() => import("@/pages/AcademyCourse"));
+const AcademyExam = lazy(() => import("@/pages/AcademyExam"));
+const ActivityPage = lazy(() => import("@/pages/Activity"));
+const ProfileSettings = lazy(() => import("@/pages/ProfileSettings"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+const AppLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+    Loading...
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -55,7 +69,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <Routes>
+            <Suspense fallback={<AppLoader />}>
+              <Routes>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/apply" element={<ApplyPage />} />
               <Route path="/academy/exam/:examId" element={<AcademyExam />} />
@@ -95,7 +110,8 @@ const App = () => (
                 <Route path="admin/activity" element={<AdminActivity />} />
               </Route>
               <Route path="*" element={<NotFound />} />
-            </Routes>
+              </Routes>
+            </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

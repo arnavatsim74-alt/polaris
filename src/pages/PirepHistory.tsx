@@ -3,12 +3,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { History, Search, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { StatusBadge } from "@/components/StatusBadge";
 
 export default function PirepHistory() {
   const { pilot } = useAuth();
@@ -38,20 +38,6 @@ export default function PirepHistory() {
       pirep.arr_icao.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      pending: "status-pending",
-      approved: "status-approved",
-      denied: "status-denied",
-      on_hold: "status-on-hold",
-    };
-    return (
-      <Badge variant="outline" className={variants[status] || ""}>
-        {status.replace("_", " ").toUpperCase()}
-      </Badge>
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -152,7 +138,7 @@ export default function PirepHistory() {
                         </Badge>
                       </td>
                       <td className="py-3 px-2">
-                        <div>{getStatusBadge(pirep.status)}</div>
+                        <div><StatusBadge status={pirep.status} classMap={{ on_hold: "status-on-hold" }} /></div>
                         {pirep.status_reason && (pirep.status === "denied" || pirep.status === "on_hold") && (
                           <p className="text-xs text-muted-foreground mt-1 max-w-[200px]" title={pirep.status_reason}>
                             Note: {pirep.status_reason}

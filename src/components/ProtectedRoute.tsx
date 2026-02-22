@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
   const { user, pilot, isAdmin, isLoading } = useAuth();
   const location = useLocation();
-  const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
+  const [hasPendingApplication, setHasPendingApplication] = useState(false);
   const [hasRecruitmentExamAccess, setHasRecruitmentExamAccess] = useState(false);
   const [isCheckingApplication, setIsCheckingApplication] = useState(false);
   const [isCheckingRecruitmentAccess, setIsCheckingRecruitmentAccess] = useState(false);
@@ -28,7 +28,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
         .eq("user_id", user.id)
         .maybeSingle();
 
-      setApplicationStatus(data?.status || null);
+      setHasPendingApplication(data?.status === "pending");
       setIsCheckingApplication(false);
     };
 
@@ -79,8 +79,6 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
   // If user is authenticated but has no pilot profile, they need to apply or wait for account provisioning
   if (!pilot) {
-    const isApproved = applicationStatus === "approved";
-
     if (location.pathname.startsWith("/academy/exam/") && hasRecruitmentExamAccess) {
       return <>{children}</>;
     }
@@ -88,11 +86,11 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="max-w-md p-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">{isApproved ? "Approval Received" : "Application Pending"}</h1>
+          <h1 className="text-2xl font-bold mb-4">Pending Approval</h1>
           <p className="text-muted-foreground mb-6">
-            {isApproved
-              ? "Your application is approved. Your pilot profile is still being provisioned. Please try again in a moment."
-              : "Your pilot application is being reviewed. You'll receive access once approved by an administrator."}
+            {hasPendingApplication
+              ? "Your pilot application is being reviewed. You'll receive access once approved by an administrator."
+              : "No active pilot profile was found yet. Use the button below to check your application status."}
           </p>
           <button
             onClick={() => window.location.href = "/apply"}

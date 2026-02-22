@@ -21,7 +21,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null; userId: string | null }>;
   signInWithDiscord: (redirectPath?: string, mode?: "login" | "register") => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshPilot: () => Promise<void>;
@@ -228,8 +228,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl } });
-    return { error };
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl } });
+    return { error, userId: data.user?.id ?? null };
   };
 
 

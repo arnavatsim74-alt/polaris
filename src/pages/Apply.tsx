@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Loader2, ArrowLeft, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { User } from "@supabase/supabase-js";
@@ -72,6 +72,7 @@ export default function ApplyPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus>("idle");
   const { user, signUp, signInWithDiscord } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isDiscordRegisterFlow = useMemo(() => {
     if (searchParams.get("oauth") === "register") return true;
@@ -145,7 +146,7 @@ export default function ApplyPage() {
 
       if (!isExistingDiscordUser) {
         // First create the account
-        const { error: signUpError } = await signUp(email, password);
+        const { error: signUpError, userId: signedUpUserId } = await signUp(email, password);
 
         if (signUpError) {
           if (signUpError.message.includes("already registered")) {
@@ -156,15 +157,13 @@ export default function ApplyPage() {
           return;
         }
 
-        // Get the newly created user
-        const { data: { user: newUser } } = await supabase.auth.getUser();
-
-        if (!newUser) {
-          toast.error("Failed to create account");
+        if (!signedUpUserId) {
+          toast.error("Account created, but we couldn't start your application session. Please log in and click Check application status.");
+          navigate("/auth", { replace: true });
           return;
         }
 
-        applicantUserId = newUser.id;
+        applicantUserId = signedUpUserId;
       } else {
         const metadataEmail = typeof user?.user_metadata?.email === "string" ? user.user_metadata.email : null;
         applicantEmail = user?.email || metadataEmail || `discord-${user?.id}@users.noreply.local`;
@@ -197,14 +196,17 @@ export default function ApplyPage() {
       }, { onConflict: "user_id" });
 
       if (appError) {
-        toast.error("Failed to submit application");
+        toast.error("Failed to submit application. Please sign in and click Check application status.");
+        navigate("/auth", { replace: true });
         return;
       }
 
-      setApplicationStatus("pending");
       toast.success("Application submitted successfully!");
+      navigate("/auth", { replace: true });
     } catch (err) {
-      toast.error("An unexpected error occurred");
+      console.error(err);
+      toast.error("Failed to continue registration. Please sign in and click Check application status.");
+      navigate("/auth", { replace: true });
     } finally {
       setIsLoading(false);
     }
@@ -254,56 +256,10 @@ export default function ApplyPage() {
     }
   }, [user, discordUsername, fullName, email]);
 
-  if (applicationStatus === "pending") {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-warning/20">
-              <Clock className="h-8 w-8 text-warning" />
-            </div>
-            <CardTitle>Application Pending</CardTitle>
-            <CardDescription>
-              Your application is being reviewed by our team. You'll receive access once approved.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to="/auth">
-              <Button variant="outline" className="w-full">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Login
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (applicationStatus === "approved") {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success/20">
-              <CheckCircle2 className="h-8 w-8 text-success" />
-            </div>
-            <CardTitle>Application Approved!</CardTitle>
-            <CardDescription>
-              Congratulations! Your pilot application has been approved. You can now sign in.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to="/auth">
-              <Button className="w-full">
-                Sign In to Crew Center
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (applicationStatus === "idle") return;
+    navigate("/auth", { replace: true });
+  }, [applicationStatus, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

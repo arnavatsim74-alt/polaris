@@ -35,7 +35,7 @@ $$;
 CREATE TABLE public.pilots (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
-    pid VARCHAR(10) NOT NULL UNIQUE, -- AFLVxxxx format
+    pid VARCHAR(10) NOT NULL UNIQUE, -- LATVxxxx format
     full_name TEXT NOT NULL,
     avatar_url TEXT,
     total_hours DECIMAL(10, 2) DEFAULT 0,
@@ -324,7 +324,7 @@ BEGIN
     SELECT COALESCE(MAX(SUBSTRING(pid FROM 5)::INTEGER), 0) + 1 INTO last_num
     FROM public.pilots;
     
-    new_pid := 'AFLV' || LPAD(last_num::TEXT, 4, '0');
+    new_pid := 'LATV' || LPAD(last_num::TEXT, 4, '0');
     RETURN new_pid;
 END;
 $$;

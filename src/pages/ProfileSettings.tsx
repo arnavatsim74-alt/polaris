@@ -6,9 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { normalizeDiscordUsername } from "@/lib/discordIdentity";
 import { UserCog } from "lucide-react";
-
-const normalizeDiscordUsername = (value: string) => value.trim().replace(/^@+/, "");
 
 export default function ProfileSettings() {
   const { user, pilot, refreshPilot } = useAuth();

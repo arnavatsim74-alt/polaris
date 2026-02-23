@@ -17,6 +17,7 @@ import aeroflotBanner from "@/assets/aeroflot-banner.jpg";
 import vacompanyLogo from "@/assets/vacompany-logo.svg";
 import { VACOMPANY_URL } from "@/lib/branding";
 import { PolarisFooter } from "@/components/PolarisFooter";
+import { PENDING_APPROVAL_MESSAGE } from "@/lib/authMessages";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -64,15 +65,15 @@ export default function AuthPage() {
     }
 
     const validateOAuthApproval = async () => {
-      const { data: applicationData, error } = await supabase
-        .from("pilot_applications")
-        .select("status")
+      const { data: pilotData, error } = await supabase
+        .from("pilots")
+        .select("approval_status")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (error || applicationData?.status !== "approved") {
+      if (error || pilotData?.approval_status !== "approved") {
         await signOut();
-        toast.error("Your application is pending admin approval. Please wait for approval before logging in.");
+        toast.error(PENDING_APPROVAL_MESSAGE);
         navigate("/auth", { replace: true });
         return;
       }

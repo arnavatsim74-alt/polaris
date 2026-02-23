@@ -2,8 +2,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, FileText, Award, Hash, Flame, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -14,6 +15,7 @@ import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 import { NotamCard } from "@/components/dashboard/NotamCard";
 import { Announcements } from "@/components/dashboard/Announcements";
 import { DailyFeaturedRoutes } from "@/components/dashboard/DailyFeaturedRoutes";
+import { StatusBadge } from "@/components/StatusBadge";
 
 export default function Dashboard() {
   const { pilot } = useAuth();
@@ -95,19 +97,20 @@ export default function Dashboard() {
     return rank?.label || rankName.replace(/_/g, " ");
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      pending: "status-pending",
-      approved: "status-approved",
-      denied: "status-denied",
-      on_hold: "status-on-hold",
-    };
-    return (
-      <Badge variant="outline" className={variants[status] || ""}>
-        {status.replace("_", " ").toUpperCase()}
-      </Badge>
-    );
-  };
+  const totalHours = Number(approvedHours ?? pilot.total_hours ?? 0);
+  const sortedRanks = [...(ranks || [])].sort((a, b) => a.order_index - b.order_index);
+  const currentRankConfig = sortedRanks.find((r) => r.name === pilot.current_rank);
+  const nextRankConfig = sortedRanks.find((r) => r.order_index > (currentRankConfig?.order_index ?? -1));
+  const currentMin = Number(currentRankConfig?.min_hours ?? 0);
+  const nextMin = Number(nextRankConfig?.min_hours ?? currentMin);
+  const hoursInCurrentBand = Math.max(0, totalHours - currentMin);
+  const hoursRequiredForNext = Math.max(1, nextMin - currentMin);
+  const rankProgressPercent = nextRankConfig
+    ? Math.min(100, Math.round((hoursInCurrentBand / hoursRequiredForNext) * 100))
+    : 100;
+
+  const streakMilestones = [3, 7, 14, 30, 60];
+  const currentStreak = Number(streak?.current_streak || 0);
 
   const getDayName = (dayIndex: number) => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -165,6 +168,23 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium">Rank Progress</p>
+            <p className="text-xs text-muted-foreground">
+              {nextRankConfig ? `${totalHours.toFixed(1)}h / ${nextMin}h` : "Max rank reached"}
+            </p>
+          </div>
+          <Progress value={rankProgressPercent} className="h-2" />
+          <p className="text-xs text-muted-foreground mt-2">
+            {nextRankConfig
+              ? `${Math.max(0, nextMin - totalHours).toFixed(1)}h remaining to ${nextRankConfig.label}`
+              : "You are at the highest available rank."}
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Announcements */}
       <Announcements />
@@ -270,6 +290,16 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {streakMilestones.map((milestone) => {
+                    const achieved = currentStreak >= milestone;
+                    return (
+                      <Badge key={milestone} variant={achieved ? "default" : "outline"}>
+                        {achieved ? "🏅" : "🔒"} {milestone}d
+                      </Badge>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="flex gap-1">
@@ -351,7 +381,7 @@ export default function Dashboard() {
                         <td className="px-4 py-3">{pirep.dep_icao}</td>
                         <td className="px-4 py-3">{pirep.arr_icao}</td>
                         <td className="px-4 py-3">
-                          {getStatusBadge(pirep.status)}
+                          <StatusBadge status={pirep.status} classMap={{ on_hold: "status-on-hold" }} />
                         </td>
                       </tr>
                     ))

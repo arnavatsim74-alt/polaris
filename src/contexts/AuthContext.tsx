@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { PENDING_APPROVAL_MESSAGE } from "@/lib/authMessages";
+import { getDiscordProfile } from "@/lib/discordIdentity";
 
 interface Pilot {
   id: string;
@@ -21,7 +23,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null; userId: string | null }>;
   signInWithDiscord: (redirectPath?: string, mode?: "login" | "register") => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshPilot: () => Promise<void>;
@@ -37,20 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const getDiscordIdentity = (authUser: User | null) => {
-    const discordIdentity = authUser?.identities?.find((identity) => identity.provider === "discord");
-    if (!discordIdentity) return { username: null as string | null, discordUserId: null as string | null };
-
-    const identityData = (discordIdentity.identity_data || {}) as Record<string, unknown>;
-    const rawUsername =
-      (typeof identityData.username === "string" && identityData.username) ||
-      (typeof identityData.global_name === "string" && identityData.global_name) ||
-      (typeof identityData.preferred_username === "string" && identityData.preferred_username) ||
-      null;
-
-    const username = rawUsername ? rawUsername.replace(/^@+/, "").trim() : null;
-    const discordUserId = typeof identityData.sub === "string" ? identityData.sub : null;
-
-    return { username, discordUserId };
+    const { discordUsername, discordUserId } = getDiscordProfile(authUser);
+    return { username: discordUsername, discordUserId };
   };
 
 
@@ -210,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: pilotData, error: pilotError } = await supabase
       .from("pilots")
-      .select("id")
+      .select("id, approval_status")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -218,33 +208,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error("Could not verify application approval. Please try again.") };
     }
 
-    if (pilotData) {
-      return { error: null };
-    }
-
-    const { data: applicationData, error: applicationError } = await supabase
-      .from("pilot_applications")
-      .select("status")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (applicationError) {
-      await supabase.auth.signOut();
-      return { error: new Error("Could not verify application approval. Please try again.") };
-    }
-
-    if (applicationData?.status === "approved") {
+    if (pilotData?.approval_status === "approved") {
       return { error: null };
     }
 
     await supabase.auth.signOut();
-    return { error: new Error("Your application is still pending admin approval.") };
+    return { error: new Error(PENDING_APPROVAL_MESSAGE) };
   };
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl } });
-    return { error };
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl } });
+    return { error, userId: data.user?.id ?? null };
   };
 
 

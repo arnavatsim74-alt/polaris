@@ -14,6 +14,7 @@ import { Shield, Check, X, Search, Users, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { fetchAllRows } from "@/lib/fetchAllRows";
+import { StatusBadge } from "@/components/StatusBadge";
 
 export default function AdminApplications() {
   const { isAdmin } = useAuth();
@@ -43,37 +44,13 @@ export default function AdminApplications() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async ({ appId, userId, fullName, pid, vatsimId, ivaoId }: any) => {
-      // Create pilot record
-      const { error: pilotError } = await supabase.from("pilots").insert({
-        user_id: userId,
-        pid,
-        full_name: fullName,
-        vatsim_id: vatsimId,
-        ivao_id: ivaoId,
+    mutationFn: async ({ appId, pid }: { appId: string; pid: string }) => {
+      const { error } = await supabase.rpc("approve_pilot_application", {
+        p_app_id: appId,
+        p_pid: pid,
       });
 
-      if (pilotError) throw pilotError;
-
-      // Add pilot role
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: userId,
-        role: "pilot",
-      });
-
-      if (roleError) throw roleError;
-
-      // Update application
-      const { error: appError } = await supabase
-        .from("pilot_applications")
-        .update({
-          status: "approved",
-          assigned_pid: pid,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", appId);
-
-      if (appError) throw appError;
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-applications"] });
@@ -130,11 +107,7 @@ export default function AdminApplications() {
     if (!selectedApp || !assignedPid) return;
     approveMutation.mutate({
       appId: selectedApp.id,
-      userId: selectedApp.user_id,
-      fullName: selectedApp.full_name,
       pid: assignedPid,
-      vatsimId: selectedApp.vatsim_id,
-      ivaoId: selectedApp.ivao_id,
     });
   };
 
@@ -159,19 +132,6 @@ export default function AdminApplications() {
 
   const pendingCount = applications?.filter((a) => a.status === "pending").length || 0;
   const rejectedCount = applications?.filter((a) => a.status === "rejected").length || 0;
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      pending: "status-pending",
-      approved: "status-approved",
-      rejected: "status-denied",
-    };
-    return (
-      <Badge variant="outline" className={variants[status] || ""}>
-        {status.toUpperCase()}
-      </Badge>
-    );
-  };
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;
@@ -257,7 +217,7 @@ export default function AdminApplications() {
                         {format(new Date(app.created_at), "MMM dd, yyyy")}
                       </td>
                       <td className="py-3 px-2">
-                        {getStatusBadge(app.status)}
+                        <StatusBadge status={app.status} />
                         {app.assigned_pid && (
                           <span className="ml-2 text-xs text-muted-foreground">
                             ({app.assigned_pid})
@@ -336,7 +296,7 @@ export default function AdminApplications() {
               <Input
                 value={assignedPid}
                 onChange={(e) => setAssignedPid(e.target.value.toUpperCase())}
-                placeholder="AFLV0001"
+                placeholder="LATV0001"
               />
             </div>
           </div>

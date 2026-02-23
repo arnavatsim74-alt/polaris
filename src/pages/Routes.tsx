@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,21 +23,15 @@ const rankLabels: Record<string, string> = {
 export default function RoutesPage() {
   const { pilot } = useAuth();
   const navigate = useNavigate();
+  const PAGE_SIZE = 50;
   const [depFilter, setDepFilter] = useState("");
   const [arrFilter, setArrFilter] = useState("");
   const [aircraftFilter, setAircraftFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
 
   // Rank order for comparison
   const rankOrder = ["cadet", "first_officer", "captain", "senior_captain", "commander"];
-
-  const { data: rankConfigs } = useQuery({
-    queryKey: ["rank-configs-all"],
-    queryFn: async () => {
-      const { data } = await supabase.from("rank_configs").select("*").eq("is_active", true).order("order_index");
-      return data || [];
-    },
-  });
 
   const pilotRankIndex = rankOrder.indexOf(pilot?.current_rank || "cadet");
 
@@ -66,6 +60,22 @@ export default function RoutesPage() {
     },
   });
 
+  const { data: recentPireps } = useQuery({
+    queryKey: ["pilot-recent-approved-pireps", pilot?.id],
+    queryFn: async () => {
+      if (!pilot?.id) return [];
+      const { data } = await supabase
+        .from("pireps")
+        .select("dep_icao, arr_icao, aircraft_icao")
+        .eq("pilot_id", pilot.id)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(40);
+      return data || [];
+    },
+    enabled: !!pilot?.id,
+  });
+
   const filteredRoutes = routes?.filter((route) => {
     const matchesDep = depFilter === "" || route.dep_icao.includes(depFilter.toUpperCase());
     const matchesArr = arrFilter === "" || route.arr_icao.includes(arrFilter.toUpperCase());
@@ -73,6 +83,41 @@ export default function RoutesPage() {
     const matchesType = typeFilter === "all" || route.route_type === typeFilter;
     return matchesDep && matchesArr && matchesAircraft && matchesType;
   });
+
+  const totalPages = Math.max(1, Math.ceil((filteredRoutes?.length || 0) / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedRoutes = (filteredRoutes || []).slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [depFilter, arrFilter, aircraftFilter, typeFilter]);
+
+  const recommendedRoutes = useMemo(() => {
+    if (!routes?.length || !pilot) return [] as typeof routes;
+
+    const depCount = new Map<string, number>();
+    const arrCount = new Map<string, number>();
+    const aircraftCount = new Map<string, number>();
+
+    for (const p of recentPireps || []) {
+      if (p.dep_icao) depCount.set(p.dep_icao, (depCount.get(p.dep_icao) || 0) + 1);
+      if (p.arr_icao) arrCount.set(p.arr_icao, (arrCount.get(p.arr_icao) || 0) + 1);
+      if (p.aircraft_icao) aircraftCount.set(p.aircraft_icao, (aircraftCount.get(p.aircraft_icao) || 0) + 1);
+    }
+
+    return [...routes]
+      .filter((r) => r.is_active && canFlyRoute(r.min_rank))
+      .map((r) => {
+        const depScore = depCount.get(r.dep_icao) || 0;
+        const arrScore = arrCount.get(r.arr_icao) || 0;
+        const acScore = aircraftCount.get(r.aircraft_icao || "") || 0;
+        const rankScore = r.min_rank === pilot.current_rank ? 2 : 0;
+        const totalScore = depScore * 2 + arrScore * 2 + acScore * 3 + rankScore;
+        return { ...r, _score: totalScore };
+      })
+      .sort((a, b) => b._score - a._score)
+      .slice(0, 6);
+  }, [routes, recentPireps, pilot]);
 
   const formatFlightTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -163,6 +208,7 @@ export default function RoutesPage() {
                   setArrFilter("");
                   setAircraftFilter("all");
                   setTypeFilter("all");
+                  setPage(1);
                 }}
               >
                 Clear Filters
@@ -172,12 +218,34 @@ export default function RoutesPage() {
         </CardContent>
       </Card>
 
+      {recommendedRoutes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recommended for You</CardTitle>
+            <CardDescription>Based on your recent approved flights, rank, and aircraft preference</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {recommendedRoutes.map((route) => (
+                <div key={`rec-${route.id}`} className="rounded-md border p-3">
+                  <p className="font-semibold">{route.route_number}</p>
+                  <p className="text-sm text-muted-foreground">{route.dep_icao} → {route.arr_icao} • {route.aircraft_icao}</p>
+                  <Button size="sm" variant="outline" className="mt-3" onClick={() => handleFilePirep(route)}>
+                    <FileText className="h-3 w-3 mr-1" /> File PIREP
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Routes Table */}
       <Card>
         <CardHeader>
           <CardTitle>Available Routes</CardTitle>
           <CardDescription>
-            {filteredRoutes?.length || 0} routes found
+            {filteredRoutes?.length || 0} routes found • Page {safePage} of {totalPages}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -204,7 +272,7 @@ export default function RoutesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRoutes.map((route) => (
+                  {pagedRoutes.map((route) => (
                     <tr key={route.id} className="border-b last:border-0 hover:bg-muted/50">
                       <td className="py-3 px-2 font-medium">{route.route_number}</td>
                       <td className="py-3 px-2 font-mono">{route.dep_icao}</td>
@@ -270,6 +338,18 @@ export default function RoutesPage() {
               <Route className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No routes found</p>
               <p className="text-sm">Try adjusting your filters or check back later</p>
+            </div>
+          )}
+
+          {filteredRoutes && filteredRoutes.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between mt-4">
+              <Button variant="outline" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                Previous
+              </Button>
+              <p className="text-sm text-muted-foreground">Showing {(safePage - 1) * PAGE_SIZE + 1}-{Math.min(safePage * PAGE_SIZE, filteredRoutes.length)} of {filteredRoutes.length}</p>
+              <Button variant="outline" disabled={safePage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                Next
+              </Button>
             </div>
           )}
         </CardContent>

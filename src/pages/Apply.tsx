@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Loader2, ArrowLeft, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import aeroflotLogo from "@/assets/aeroflot-logo.png";
 import { PolarisFooter } from "@/components/PolarisFooter";
+import { getDiscordProfile, normalizeDiscordUsername } from "@/lib/discordIdentity";
 
 const applicationSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
@@ -31,6 +32,7 @@ const applicationSchema = z.object({
 
 type ApplicationStatus = "idle" | "pending" | "approved" | "rejected";
 
+
 export default function ApplyPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -48,12 +50,9 @@ export default function ApplyPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus>("idle");
   const { user, signUp, signInWithDiscord } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isDiscordRegisterFlow = useMemo(() => {
-    if (searchParams.get("oauth") === "register") return true;
-    if (typeof window === "undefined") return false;
-    return window.sessionStorage.getItem("discord_oauth_mode") === "register";
-  }, [searchParams]);
+  const isDiscordRegisterFlow = searchParams.get("oauth") === "register";
 
   // Check if user already has an application
   useEffect(() => {
@@ -116,10 +115,12 @@ export default function ApplyPage() {
     try {
       let applicantUserId = user?.id;
       let applicantEmail = email;
+      const { discordUsername: oauthDiscordUsername, discordUserId } = getDiscordProfile(user);
+      const normalizedDiscordUsername = normalizeDiscordUsername(discordUsername || oauthDiscordUsername || "");
 
       if (!isExistingDiscordUser) {
         // First create the account
-        const { error: signUpError } = await signUp(email, password);
+        const { error: signUpError, userId: signedUpUserId } = await signUp(email, password);
 
         if (signUpError) {
           if (signUpError.message.includes("already registered")) {
@@ -130,15 +131,13 @@ export default function ApplyPage() {
           return;
         }
 
-        // Get the newly created user
-        const { data: { user: newUser } } = await supabase.auth.getUser();
-
-        if (!newUser) {
-          toast.error("Failed to create account");
+        if (!signedUpUserId) {
+          toast.error("Account created, but we couldn't start your application session. Please log in.");
+          navigate("/auth", { replace: true });
           return;
         }
 
-        applicantUserId = newUser.id;
+        applicantUserId = signedUpUserId;
       } else {
         const metadataEmail = typeof user?.user_metadata?.email === "string" ? user.user_metadata.email : null;
         applicantEmail = user?.email || metadataEmail || `discord-${user?.id}@users.noreply.local`;
@@ -159,7 +158,8 @@ export default function ApplyPage() {
         experience_level: ifGrade,
         preferred_simulator: isIfatc,
         reason_for_joining: whyJoinAflv,
-        discord_username: discordUsername,
+        discord_username: normalizedDiscordUsername,
+        discord_user_id: discordUserId,
         if_grade: ifGrade,
         is_ifatc: isIfatc,
         ifc_trust_level: ifcTrustLevel,
@@ -170,14 +170,17 @@ export default function ApplyPage() {
       }, { onConflict: "user_id" });
 
       if (appError) {
-        toast.error("Failed to submit application");
+        toast.error("Failed to submit application. Please sign in.");
+        navigate("/auth", { replace: true });
         return;
       }
 
-      setApplicationStatus("pending");
       toast.success("Application submitted successfully!");
+      navigate("/auth", { replace: true });
     } catch (err) {
-      toast.error("An unexpected error occurred");
+      console.error(err);
+      toast.error("Failed to continue registration. Please sign in.");
+      navigate("/auth", { replace: true });
     } finally {
       setIsLoading(false);
     }
@@ -188,9 +191,6 @@ export default function ApplyPage() {
     setIsLoading(true);
 
     try {
-      if (typeof window !== "undefined") {
-        window.sessionStorage.setItem("discord_oauth_mode", "register");
-      }
       const { error } = await signInWithDiscord("/apply", "register");
       if (error) {
         toast.error(error.message);
@@ -209,9 +209,9 @@ export default function ApplyPage() {
   useEffect(() => {
     if (!user) return;
     const metadata = user.user_metadata || {};
-    const discordFromMetadata = metadata.preferred_username || metadata.global_name || metadata.name || "";
-    if (discordFromMetadata && !discordUsername) {
-      setDiscordUsername(String(discordFromMetadata));
+    const { discordUsername: discordFromOAuth } = getDiscordProfile(user);
+    if (discordFromOAuth && !discordUsername) {
+      setDiscordUsername(String(discordFromOAuth));
     }
     if (!fullName) {
       const fullNameFromMetadata = metadata.full_name || metadata.name || metadata.global_name || "";
@@ -227,56 +227,10 @@ export default function ApplyPage() {
     }
   }, [user, discordUsername, fullName, email]);
 
-  if (applicationStatus === "pending") {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-warning/20">
-              <Clock className="h-8 w-8 text-warning" />
-            </div>
-            <CardTitle>Application Pending</CardTitle>
-            <CardDescription>
-              Your application is being reviewed by our team. You'll receive access once approved.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to="/auth">
-              <Button variant="outline" className="w-full">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Login
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (applicationStatus === "approved") {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success/20">
-              <CheckCircle2 className="h-8 w-8 text-success" />
-            </div>
-            <CardTitle>Application Approved!</CardTitle>
-            <CardDescription>
-              Congratulations! Your pilot application has been approved. You can now sign in.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to="/auth">
-              <Button className="w-full">
-                Sign In to Crew Center
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (applicationStatus === "idle") return;
+    navigate("/auth", { replace: true });
+  }, [applicationStatus, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

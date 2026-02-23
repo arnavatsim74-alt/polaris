@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Shield, Search, Check, X, Pause, FileText, Plus, Trash2, Briefcase } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { StatusBadge } from "@/components/StatusBadge";
 import { sendNotification } from "@/lib/notifications";
 
 export default function AdminPireps() {
@@ -188,20 +189,6 @@ export default function AdminPireps() {
     return matchesSearch;
   });
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      pending: "status-pending",
-      approved: "status-approved",
-      denied: "status-denied",
-      on_hold: "status-on-hold",
-    };
-    return (
-      <Badge variant="outline" className={variants[status] || ""}>
-        {status.replace("_", " ").toUpperCase()}
-      </Badge>
-    );
-  };
-
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
@@ -307,7 +294,7 @@ export default function AdminPireps() {
                       <td className="py-3 px-2">
                         <span className="font-mono text-xs" title={`×${pirep.multiplier}`}>{getMultiplierName(pirep.multiplier)}</span>
                       </td>
-                      <td className="py-3 px-2">{getStatusBadge(pirep.status)}</td>
+                      <td className="py-3 px-2"><StatusBadge status={pirep.status} classMap={{ on_hold: "status-on-hold" }} /></td>
                       <td className="py-3 px-2 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {pirep.status !== "approved" && (

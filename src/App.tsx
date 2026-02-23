@@ -86,7 +86,7 @@ const App = () => (
                 <Route path="events" element={<Events />} />
                 <Route path="details" element={<Details />} />
                 <Route path="challenges" element={<Challenges />} />
-                <Route path="latourmiles" element={<AflvBonusPage />} />
+                <Route path="aflvbonus" element={<AflvBonusPage />} />
                 <Route path="frequentflyer" element={<AflvBonusPage />} />
                 <Route path="tracker" element={<Tracker />} />
                 <Route path="academy" element={<Academy />} />

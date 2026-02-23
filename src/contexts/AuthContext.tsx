@@ -180,7 +180,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAdmin(false);
           setIsPilotLoading(false);
         }
-        setIsLoading(false);
       }
     );
 

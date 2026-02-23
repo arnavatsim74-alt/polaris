@@ -42,7 +42,7 @@ const PRACTICAL_TASKS = [
   '7. Proceed direct "MR" Moscow Shr. VOR.',
   "8. Transition to pattern for landing at any runway at UUEE.",
   "9. Land, park, and exit.",
-  "> **Note - You are pilot currently Provisional Pilot. you can fly for AFLV Any time and any route under the cadet rank.**",
+  "> **Note - You are pilot currently Provisional Pilot. you can fly for LATV Any time and any route under the cadet rank.**",
 ];
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
@@ -429,7 +429,7 @@ const createRecruitmentEmbed = async () => {
   const res = await discordApi(`/channels/${RECRUITMENTS_CHANNEL_ID}/messages`, {
     method: "POST",
     body: JSON.stringify({
-      embeds: [{ title: "AFLV Recruitments", description: "Click **Fly High** to open your recruitment ticket and start your entrance written exam.", color: COLORS.BLUE }],
+      embeds: [{ title: "LATV Recruitments", description: "Click **Fly High** to open your recruitment ticket and start your entrance written exam.", color: COLORS.BLUE }],
       components: [actionRow(btn(1, RECRUITMENT_BUTTON_CUSTOM_ID, "Fly High"))],
     }),
   });
@@ -644,7 +644,7 @@ const handlePracticalReviewModal = async (body: any, customId: string) => {
       type: 4,
       data: {
         embeds: [{
-          title: "AFLV | Practical Review", color,
+          title: "LATV | Practical Review", color,
           description: `Practical review complete.\n**Result:** ${outcome}`,
           fields: [
             { name: "Pilot",        value: result.discordUserId ? `<@${result.discordUserId}>` : String((result.practical as any)?.pilots?.full_name || "Unknown"), inline: true },
@@ -719,7 +719,7 @@ const processRecruitmentButton = async (body: any): Promise<string> => {
     body: JSON.stringify({
       content: `<@${discordUserId}>`,
       embeds: [{
-        title: "AFLV | Recruitment Written Test", color: COLORS.BLUE,
+        title: "LATV | Recruitment Written Test", color: COLORS.BLUE,
         description: ["Please complete your entrance written exam using the link below:", examUrl, "", "After you pass, click **Continue** below.", "**Note:** If you fail, there is a 24-hour cooldown before a new written test link is issued. if new link is not issued please inform respective authorities."].join("\n"),
         timestamp: new Date().toISOString(),
       }],
@@ -788,7 +788,7 @@ const handleOpenCallsignModal = async (body: any, token: string) => {
       custom_id: `${RECRUITMENT_CALLSIGN_MODAL_PREFIX}${token}`.slice(0, 100),
       title: "Continue",
       components: [
-        actionRow({ type: 4, custom_id: "preferred_callsign", label: "Preferred Callsign (AFLVXXX)", style: 1, min_length: 7, max_length: 7, required: true, placeholder: "AFLV123" }),
+        actionRow({ type: 4, custom_id: "preferred_callsign", label: "Preferred Callsign (LATVXXX)", style: 1, min_length: 7, max_length: 7, required: true, placeholder: "LATV123" }),
         actionRow({ type: 4, custom_id: "contact_email", label: "Registration Email (if not Discord)", style: 1, required: false, placeholder: "name@example.com" }),
       ],
     },
@@ -800,7 +800,7 @@ const handleSubmitCallsignModal = async (body: any, token: string) => {
   if (!discordUserId) return ephemeralReply("Missing Discord user context.");
 
   const preferredPid = readModalInput(body, "preferred_callsign").toUpperCase().trim();
-  if (!/^AFLV[A-Z0-9]{3}$/.test(preferredPid)) return ephemeralReply("Invalid format. Use AFLVXXX (letters/numbers).");
+  if (!/^LATV[A-Z0-9]{3}$/.test(preferredPid)) return ephemeralReply("Invalid format. Use LATVXXX (letters/numbers).");
 
   const email = readModalInput(body, "contact_email").trim();
   const { data, error } = await supabase.rpc("set_recruitment_callsign_details", { p_token: token, p_pid: preferredPid, p_email: email || null });
@@ -844,15 +844,15 @@ const handleRecruitmentPracticalConfirm = async (token: string) => {
 };
 
 const buildPracticalAssignedInteraction = (pidInput: string, practicalIdInput: string) => {
-  const pid         = String(pidInput || "AFLV");
-  const shortPid    = pid.replace(/^AFLV/i, "") || pid;
+  const pid         = String(pidInput || "LATV");
+  const shortPid    = pid.replace(/^LATV/i, "") || pid;
   const practicalId = String(practicalIdInput || "");
   // Public — visible in the recruitment channel
   return Response.json({
     type: 4,
     data: {
       embeds: [{
-        title: "AFLV | Practical Assigned", color: COLORS.BLUE,
+        title: "LATV | Practical Assigned", color: COLORS.BLUE,
         description: "Your practical is assigned. Complete the task and wait for examiner review.",
         fields: [
           { name: "Practical Tasks",     value: PRACTICAL_TASKS.join("\n") },
@@ -908,18 +908,18 @@ const handleRecruitmentPracticalReady = async (body: any, token: string) => {
         const { data: existingPractical } = await supabase.from("academy_practicals").select("id")
           .eq("pilot_id", pilotForFallback.id).in("status", ["scheduled", "completed"]).ilike("notes", "Recruitment practical%")
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
-        if (existingPractical?.id) return buildPracticalAssignedInteraction(String(pilotForFallback.pid || "AFLV"), String(existingPractical.id));
+        if (existingPractical?.id) return buildPracticalAssignedInteraction(String(pilotForFallback.pid || "LATV"), String(existingPractical.id));
 
         const courseIdRaw = await getSiteSetting("recruitment_practical_id");
         const courseId    = courseIdRaw && /^[0-9a-f-]{36}$/i.test(String(courseIdRaw)) ? String(courseIdRaw) : null;
-        const shortPid    = String(pilotForFallback.pid || "AFLV").replace(/^AFLV/i, "");
+        const shortPid    = String(pilotForFallback.pid || "LATV").replace(/^LATV/i, "");
         const practicalNotes = ["Recruitment practical", ...PRACTICAL_TASKS, "", `ATYP - C172`, `CALLSIGN - Aeroflot ${shortPid}CR`].join("\n");
 
         const { data: createdPractical, error: createError } = await supabase.from("academy_practicals")
           .insert({ pilot_id: pilotForFallback.id, course_id: courseId, status: "scheduled", notes: practicalNotes })
           .select("id").single();
         if (createError) return ephemeralReply(createError.message || "Could not assign practical.");
-        return buildPracticalAssignedInteraction(String(pilotForFallback.pid || "AFLV"), String(createdPractical?.id || ""));
+        return buildPracticalAssignedInteraction(String(pilotForFallback.pid || "LATV"), String(createdPractical?.id || ""));
       }
     }
   }
@@ -927,7 +927,7 @@ const handleRecruitmentPracticalReady = async (body: any, token: string) => {
   if (data?.already_assigned) return ephemeralReply("Practical already assigned. Please complete it and wait for staff review.");
   if (data?.ok === false)      return ephemeralReply(String(data?.message || "Could not assign practical."));
 
-  return buildPracticalAssignedInteraction(String(data?.pid || "AFLV"), String(data?.practical_id || ""));
+  return buildPracticalAssignedInteraction(String(data?.pid || "LATV"), String(data?.practical_id || ""));
 };
 
 // ─── Main server ──────────────────────────────────────────────────────────────

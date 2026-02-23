@@ -94,8 +94,8 @@ export default function AflvBonus() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">Aeroflot Bonus</h1>
-        <p className="text-muted-foreground">Aeroflot Virtual Group Frequent Flyer Program</p>
+        <h1 className="text-3xl font-bold">Latour Miles</h1>
+        <p className="text-muted-foreground">Latour Virtual Frequent Flyer Program</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">

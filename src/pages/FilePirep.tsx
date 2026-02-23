@@ -37,6 +37,8 @@ export default function FilePirep() {
   const [selectedMultiplier, setSelectedMultiplier] = useState("1");
   const [operator, setOperator] = useState("");
   const [flightType, setFlightType] = useState<"passenger" | "cargo">("passenger");
+  const [pax, setPax] = useState("");
+  const [cargoKg, setCargoKg] = useState("");
   const [showAllAircraft, setShowAllAircraft] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -160,8 +162,19 @@ export default function FilePirep() {
     }
 
     const hours = parseFloat(flightHours);
+    const paxValue = pax.trim() === "" ? null : Number(pax);
+    const cargoKgValue = cargoKg.trim() === "" ? null : Number(cargoKg);
+
     if (isNaN(hours) || hours <= 0 || hours > 24) {
       toast.error("Please enter valid flight hours (0-24)"); return;
+    }
+
+    if (paxValue !== null && (!Number.isInteger(paxValue) || paxValue < 0)) {
+      toast.error("PAX must be a whole number of 0 or greater"); return;
+    }
+
+    if (cargoKgValue !== null && (!Number.isFinite(cargoKgValue) || cargoKgValue < 0)) {
+      toast.error("Cargo must be a number of 0 or greater"); return;
     }
 
     setIsLoading(true);
@@ -177,6 +190,8 @@ export default function FilePirep() {
         multiplier: currentMultiplierValue,
         operator,
         flight_type: flightType,
+        pax: paxValue,
+        cargo_kg: cargoKgValue,
       });
       if (error) throw error;
 
@@ -194,6 +209,8 @@ export default function FilePirep() {
             flight_hours: hours,
             operator,
             flight_type: flightType,
+            pax: paxValue,
+            cargo_kg: cargoKgValue,
           },
         });
       } catch (discordErr) {
@@ -324,6 +341,34 @@ export default function FilePirep() {
                       <SelectItem value="cargo">Cargo</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="pax">PAX</Label>
+                  <Input
+                    id="pax"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="180"
+                    value={pax}
+                    onChange={(e) => setPax(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cargoKg">Cargo (kg)</Label>
+                  <Input
+                    id="cargoKg"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="2500"
+                    value={cargoKg}
+                    onChange={(e) => setCargoKg(e.target.value)}
+                    disabled={isLoading}
+                  />
                 </div>
               </div>
             </div>

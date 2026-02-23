@@ -22,6 +22,7 @@ interface AuthContextType {
   pilot: Pilot | null;
   isAdmin: boolean;
   isLoading: boolean;
+  isPilotLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null; userId: string | null }>;
   signInWithDiscord: (redirectPath?: string, mode?: "login" | "register") => Promise<{ error: Error | null }>;
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pilot, setPilot] = useState<Pilot | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPilotLoading, setIsPilotLoading] = useState(false);
 
   const getDiscordIdentity = (authUser: User | null) => {
     const { discordUsername, discordUserId } = getDiscordProfile(authUser);
@@ -86,12 +88,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchPilotData = async (userId: string, authUser?: User) => {
+    setIsPilotLoading(true);
     try {
       const { data: pilotData } = await supabase
         .from("pilots")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
       if (pilotData) {
         if (authUser) {
@@ -120,11 +123,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select("role")
         .eq("user_id", userId)
         .eq("role", "admin")
-        .single();
+        .maybeSingle();
 
       setIsAdmin(!!roleData);
     } catch (error) {
       console.error("Error fetching pilot data:", error);
+      setPilot(null);
+      setIsAdmin(false);
+    } finally {
+      setIsPilotLoading(false);
     }
   };
 
@@ -157,38 +164,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    let isActive = true;
 
-        if (session?.user) {
-          setTimeout(() => {
-            fetchPilotData(session.user.id, session.user).then(() => {
-              // After fetching, try admin setup if needed
-              tryAdminSetup(session);
-            });
-          }, 0);
-        } else {
-          setPilot(null);
-          setIsAdmin(false);
-        }
+    const resolveSession = async (authSession: Session | null) => {
+      if (!isActive) return;
+
+      setSession(authSession);
+      setUser(authSession?.user ?? null);
+
+      if (!authSession?.user) {
+        setPilot(null);
+        setIsAdmin(false);
+        setIsPilotLoading(false);
         setIsLoading(false);
+        return;
+      }
+
+      setIsPilotLoading(true);
+      await fetchPilotData(authSession.user.id, authSession.user);
+      await tryAdminSetup(authSession);
+
+      if (!isActive) return;
+      setIsLoading(false);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, authSession) => {
+        void resolveSession(authSession);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchPilotData(session.user.id, session.user).then(() => {
-          tryAdminSetup(session);
-        });
-      }
-      setIsLoading(false);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      await resolveSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isActive = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -245,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, pilot, isAdmin, isLoading, signIn, signUp, signInWithDiscord, signOut, refreshPilot }}>
+    <AuthContext.Provider value={{ user, session, pilot, isAdmin, isLoading, isPilotLoading, signIn, signUp, signInWithDiscord, signOut, refreshPilot }}>
       {children}
     </AuthContext.Provider>
   );

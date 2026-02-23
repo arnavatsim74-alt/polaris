@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { History, Search, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -107,6 +108,7 @@ export default function PirepHistory() {
                     <th className="text-left py-3 px-2 font-medium">Hours</th>
                     <th className="text-left py-3 px-2 font-medium">Operator</th>
                     <th className="text-left py-3 px-2 font-medium">Type</th>
+                    <th className="text-left py-3 px-2 font-medium">PAX/Cargo</th>
                     <th className="text-left py-3 px-2 font-medium">Status</th>
                   </tr>
                 </thead>
@@ -136,6 +138,10 @@ export default function PirepHistory() {
                         <Badge variant="secondary" className="capitalize">
                           {pirep.flight_type}
                         </Badge>
+                      </td>
+                      <td className="py-3 px-2 text-muted-foreground">
+                        {(pirep.pax ?? 0) > 0 ? `${pirep.pax} pax` : "-"}
+                        {(pirep.cargo_kg ?? 0) > 0 ? ` / ${pirep.cargo_kg} kg` : ""}
                       </td>
                       <td className="py-3 px-2">
                         <div><StatusBadge status={pirep.status} classMap={{ on_hold: "status-on-hold" }} /></div>

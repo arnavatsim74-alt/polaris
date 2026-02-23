@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layouts/AppLayout";
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 
 const AuthPage = lazy(() => import("@/pages/Auth"));
 const ApplyPage = lazy(() => import("@/pages/Apply"));
@@ -62,15 +63,16 @@ const AppLoader = () => (
 );
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="dark" storageKey="aeroflot-va-theme">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Suspense fallback={<AppLoader />}>
-              <Routes>
+  <AppErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="dark" storageKey="aeroflot-va-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <Suspense fallback={<AppLoader />}>
+                <Routes>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/apply" element={<ApplyPage />} />
               <Route path="/academy/exam/:examId" element={<AcademyExam />} />
@@ -110,13 +112,14 @@ const App = () => (
                 <Route path="admin/activity" element={<AdminActivity />} />
               </Route>
               <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+                </Routes>
+              </Suspense>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </AppErrorBoundary>
 );
 
 export default App;

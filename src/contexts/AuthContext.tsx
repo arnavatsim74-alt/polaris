@@ -22,6 +22,7 @@ interface AuthContextType {
   pilot: Pilot | null;
   isAdmin: boolean;
   isLoading: boolean;
+  isPilotLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null; userId: string | null }>;
   signInWithDiscord: (redirectPath?: string, mode?: "login" | "register") => Promise<{ error: Error | null }>;
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pilot, setPilot] = useState<Pilot | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPilotLoading, setIsPilotLoading] = useState(false);
 
   const getDiscordIdentity = (authUser: User | null) => {
     const { discordUsername, discordUserId } = getDiscordProfile(authUser);
@@ -86,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchPilotData = async (userId: string, authUser?: User) => {
+    setIsPilotLoading(true);
     try {
       const { data: pilotData } = await supabase
         .from("pilots")
@@ -125,6 +128,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAdmin(!!roleData);
     } catch (error) {
       console.error("Error fetching pilot data:", error);
+      setPilot(null);
+      setIsAdmin(false);
+    } finally {
+      setIsPilotLoading(false);
     }
   };
 
@@ -163,27 +170,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          setTimeout(() => {
-            fetchPilotData(session.user.id, session.user).then(() => {
-              // After fetching, try admin setup if needed
-              tryAdminSetup(session);
-            });
+          setTimeout(async () => {
+            await fetchPilotData(session.user.id, session.user);
+            // After fetching, try admin setup if needed
+            await tryAdminSetup(session);
           }, 0);
         } else {
           setPilot(null);
           setIsAdmin(false);
+          setIsPilotLoading(false);
         }
         setIsLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchPilotData(session.user.id, session.user).then(() => {
-          tryAdminSetup(session);
-        });
+        await fetchPilotData(session.user.id, session.user);
+        await tryAdminSetup(session);
+      } else {
+        setPilot(null);
+        setIsAdmin(false);
+        setIsPilotLoading(false);
       }
       setIsLoading(false);
     });
@@ -245,7 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, pilot, isAdmin, isLoading, signIn, signUp, signInWithDiscord, signOut, refreshPilot }}>
+    <AuthContext.Provider value={{ user, session, pilot, isAdmin, isLoading, isPilotLoading, signIn, signUp, signInWithDiscord, signOut, refreshPilot }}>
       {children}
     </AuthContext.Provider>
   );

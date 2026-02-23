@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     if (!existingPilot) {
       // Get next PID
       const { data: pidData } = await supabaseAdmin.rpc("get_next_pid");
-      const pid = pidData || "LATV000";
+      const pid = pidData || "AFLV000";
 
       const { error: pilotError } = await supabaseAdmin.from("pilots").insert({
         user_id: user.id,

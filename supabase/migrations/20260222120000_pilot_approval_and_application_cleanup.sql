@@ -27,8 +27,8 @@ begin
   if v_pid !~ '^AFLV[A-Z0-9]{3}$' then
     raise exception 'Callsign must be in AFLVXXX format';
 =======
-  if v_pid !~ '^LATV[A-Z0-9]{3}$' then
-    raise exception 'Callsign must be in LATVXXX format';
+  if v_pid !~ '^AFLV[A-Z0-9]{3}$' then
+    raise exception 'Callsign must be in AFLVXXX format';
 // latv
   end if;
 

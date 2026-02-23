@@ -169,8 +169,8 @@ declare
   v_pid text;
 begin
   v_pid := upper(trim(p_pid));
-  if v_pid !~ '^LATV[A-Z0-9]{3}$' then
-    raise exception 'Callsign must be in LATVXXX format';
+  if v_pid !~ '^AFLV[A-Z0-9]{3}$' then
+    raise exception 'Callsign must be in AFLVXXX format';
   end if;
 
   select * into v_token from public.recruitment_exam_sessions where token = p_token limit 1;

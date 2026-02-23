@@ -26,8 +26,8 @@ const applicationSchema = z.object({
   ageRange: z.enum(["13-16", "17-21", "22-27", "28-34", "35-41", "42-50", "51-60", "Above"]),
   ifcProfileUrl: z.string().url("Please enter a valid IFC profile URL").or(z.literal("")),
   otherVaMembership: z.string().min(2, "Please answer if you are a member of another VA or VO"),
-  whyJoinAflv: z.string().min(10, "Please share why you want to join LATV"),
-  hearAboutAflv: z.string().min(2, "Please share where you heard about LATV"),
+  whyJoinAflv: z.string().min(10, "Please share why you want to join AFLV"),
+  hearAboutAflv: z.string().min(2, "Please share where you heard about AFLV"),
 });
 
 type ApplicationStatus = "idle" | "pending" | "approved" | "rejected";
@@ -255,9 +255,9 @@ export default function ApplyPage() {
           <Card className="w-full max-w-2xl">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4">
-              <img src={aeroflotLogo} alt="Latour Virtual" className="h-12 w-auto object-contain" />
+              <img src={aeroflotLogo} alt="Aeroflot Virtual Group" className="h-12 w-auto object-contain" />
             </div>
-            <CardTitle className="text-2xl">Join Latour Virtual</CardTitle>
+            <CardTitle className="text-2xl">Join Aeroflot Virtual Group</CardTitle>
             <CardDescription>
               Complete this form to apply for a pilot position with our virtual airline on Infinite Flight
             </CardDescription>
@@ -378,11 +378,11 @@ export default function ApplyPage() {
                     <Input id="otherVaMembership" value={otherVaMembership} onChange={(e) => setOtherVaMembership(e.target.value)} disabled={isLoading} required />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="whyJoinAflv">Why you want to join LATV? *</Label>
+                    <Label htmlFor="whyJoinAflv">Why you want to join AFLV? *</Label>
                     <Input id="whyJoinAflv" value={whyJoinAflv} onChange={(e) => setWhyJoinAflv(e.target.value)} disabled={isLoading} required />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="hearAboutAflv">Where did you hear about LATV? *</Label>
+                    <Label htmlFor="hearAboutAflv">Where did you hear about AFLV? *</Label>
                     <Input id="hearAboutAflv" value={hearAboutAflv} onChange={(e) => setHearAboutAflv(e.target.value)} disabled={isLoading} required />
                   </div>
                 </div>

@@ -11,11 +11,11 @@ begin
   select coalesce(max(cast(substring(pid from 5) as integer)), 0)
     into last_num
   from public.pilots
-  where pid ~ '^LATV[0-9]{4}$';
+  where pid ~ '^AFLV[0-9]{4}$';
 
   loop
     last_num := last_num + 1;
-    new_pid := 'LATV' || lpad(last_num::text, 4, '0');
+    new_pid := 'AFLV' || lpad(last_num::text, 4, '0');
 
     exit when not exists (
       select 1 from public.pilots where pid = new_pid
@@ -45,8 +45,8 @@ begin
   end if;
 
   v_pid := upper(trim(p_pid));
-  if v_pid !~ '^LATV[A-Z0-9]{3}$' then
-    raise exception 'Callsign must be in LATVXXX format';
+  if v_pid !~ '^AFLV[A-Z0-9]{3}$' then
+    raise exception 'Callsign must be in AFLVXXX format';
   end if;
 
   select * into v_app

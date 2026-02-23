@@ -102,7 +102,7 @@ export default function AdminBonusTiers() {
             <CreditCard className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">AFLV Aeroflot Bonus Tiers</h1>
+            <h1 className="text-2xl font-bold">LATV Latour Miles Tiers</h1>
             <p className="text-muted-foreground">Manage frequent flyer card tiers</p>
           </div>
         </div>

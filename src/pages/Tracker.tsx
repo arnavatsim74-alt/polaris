@@ -21,7 +21,7 @@ export default function Tracker() {
       <iframe
         src={trackerUrl || DEFAULT_TRACKER_URL}
         className="w-full h-full border-0"
-        title="AFLV Tracker"
+        title="LATV Tracker"
         allow="fullscreen"
       />
     </div>

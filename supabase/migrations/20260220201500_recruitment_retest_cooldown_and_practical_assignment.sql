@@ -27,8 +27,8 @@ declare
   v_practical_id uuid;
 begin
   v_pid := upper(trim(p_pid));
-  if v_pid !~ '^AFLV[A-Z0-9]{3}$' then
-    raise exception 'Callsign must be in AFLVXXX format';
+  if v_pid !~ '^LATV[A-Z0-9]{3}$' then
+    raise exception 'Callsign must be in LATVXXX format';
   end if;
 
   select * into v_session

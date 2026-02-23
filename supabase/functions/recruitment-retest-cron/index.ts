@@ -159,13 +159,13 @@ serve(async () => {
 
       if (!session?.recruitment_channel_id) continue;
 
-      const shortPid = String(pilot?.pid || "AFLV").replace(/^AFLV/i, "");
+      const shortPid = String(pilot?.pid || "LATV").replace(/^LATV/i, "");
       const messageResponse = await discordApi(`/channels/${session.recruitment_channel_id}/messages`, {
         method: "POST",
         body: JSON.stringify({
           content: session.discord_user_id ? `<@${session.discord_user_id}>` : undefined,
           embeds: [{
-            title: "AFLV | Practical Retest Assigned",
+            title: "LATV | Practical Retest Assigned",
             color: 0x3498db,
             description: "Your 24-hour cooldown is complete. Practical retest is now active.",
             fields: [

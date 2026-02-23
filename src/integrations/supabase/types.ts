@@ -1238,6 +1238,7 @@ export type Database = {
         Row: {
           aircraft_icao: string
           arr_icao: string
+          cargo_kg: number | null
           created_at: string | null
           dep_icao: string
           flight_date: string
@@ -1247,6 +1248,7 @@ export type Database = {
           id: string
           multiplier: number | null
           operator: string
+          pax: number | null
           pilot_id: string
           reviewed_at: string | null
           reviewed_by: string | null
@@ -1256,6 +1258,7 @@ export type Database = {
         Insert: {
           aircraft_icao: string
           arr_icao: string
+          cargo_kg?: number | null
           created_at?: string | null
           dep_icao: string
           flight_date: string
@@ -1265,6 +1268,7 @@ export type Database = {
           id?: string
           multiplier?: number | null
           operator: string
+          pax?: number | null
           pilot_id: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -1274,6 +1278,7 @@ export type Database = {
         Update: {
           aircraft_icao?: string
           arr_icao?: string
+          cargo_kg?: number | null
           created_at?: string | null
           dep_icao?: string
           flight_date?: string
@@ -1283,6 +1288,7 @@ export type Database = {
           id?: string
           multiplier?: number | null
           operator?: string
+          pax?: number | null
           pilot_id?: string
           reviewed_at?: string | null
           reviewed_by?: string | null

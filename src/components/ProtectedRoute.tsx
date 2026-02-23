@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { user, pilot, isAdmin, isLoading } = useAuth();
+  const { user, pilot, isAdmin, isLoading, isPilotLoading } = useAuth();
   const location = useLocation();
   const [hasRecruitmentExamAccess, setHasRecruitmentExamAccess] = useState(false);
   const [isCheckingRecruitmentAccess, setIsCheckingRecruitmentAccess] = useState(false);
@@ -42,7 +42,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     checkRecruitmentExamAccess();
   }, [location.pathname, location.search, pilot, user]);
 
-  if (isLoading || isCheckingRecruitmentAccess) {
+  if (isLoading || isPilotLoading || isCheckingRecruitmentAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

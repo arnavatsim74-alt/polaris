@@ -259,6 +259,7 @@ export default function AdminPireps() {
                     <th className="text-left py-3 px-2 font-medium">Aircraft</th>
                     <th className="text-left py-3 px-2 font-medium">Operator</th>
                     <th className="text-left py-3 px-2 font-medium">Type</th>
+                    <th className="text-left py-3 px-2 font-medium">PAX/Cargo</th>
                     <th className="text-left py-3 px-2 font-medium">Hours</th>
                     <th className="text-left py-3 px-2 font-medium">Multiplier</th>
                     <th className="text-left py-3 px-2 font-medium">Status</th>
@@ -287,6 +288,10 @@ export default function AdminPireps() {
                         <Badge variant="secondary" className="capitalize">
                           {pirep.flight_type}
                         </Badge>
+                      </td>
+                      <td className="py-3 px-2 text-muted-foreground">
+                        {(pirep.pax ?? 0) > 0 ? `${pirep.pax} pax` : "-"}
+                        {(pirep.cargo_kg ?? 0) > 0 ? ` / ${pirep.cargo_kg} kg` : ""}
                       </td>
                       <td className="py-3 px-2">
                         {Number(pirep.flight_hours).toFixed(1)}

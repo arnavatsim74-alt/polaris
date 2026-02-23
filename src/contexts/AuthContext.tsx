@@ -45,8 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { username: discordUsername, discordUserId };
   };
 
-
-
   const getDiscordAvatarUrl = (authUser: User | null) => {
     const discordIdentity = authUser?.identities?.find((identity) => identity.provider === "discord");
     const identityData = (discordIdentity?.identity_data || {}) as Record<string, unknown>;
@@ -140,7 +138,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const email = userSession.user.email;
       if (email !== "admin@aflv.ru") return;
 
-      // Check if pilot already exists
       const { data: existingPilot } = await supabase
         .from("pilots")
         .select("id")
@@ -149,10 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (existingPilot) return;
 
-      // Call edge function to set up admin
       await supabase.functions.invoke("setup-admin");
-
-      // Re-fetch pilot data after setup
       await fetchPilotData(userSession.user.id);
     } catch (err) {
       console.error("Admin setup error:", err);
@@ -164,60 +158,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-let isActive = true;
-
-const { data: { subscription } } = supabase.auth.onAuthStateChange(
-  (event, session) => {
-    if (!isActive) return;
-    setSession(session);
-    setUser(session?.user ?? null);
-    if (session?.user) {
-      setTimeout(async () => {
-        if (!isActive) return;
-        await fetchPilotData(session.user.id, session.user);
-        await tryAdminSetup(session);
-      }, 0);
-    } else {
-      setPilot(null);
-      setIsAdmin(false);
-      setIsPilotLoading(false);
-      setIsLoading(false);
-    }
-  }
-);
-
-supabase.auth.getSession().then(async ({ data: { session } }) => {
-  if (!isActive) return;
-  setSession(session);
-  setUser(session?.user ?? null);
-  if (session?.user) {
-    setIsPilotLoading(true);
-    await fetchPilotData(session.user.id, session.user);
-    await tryAdminSetup(session);
-    if (!isActive) return;
-  } else {
-    setPilot(null);
-    setIsAdmin(false);
-    setIsPilotLoading(false);
-  }
-  setIsLoading(false);
-});
-
-return () => {
-  isActive = false;
-  subscription.unsubscribe();
-};
-      setIsLoading(false);
-    };
+    let isActive = true;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, authSession) => {
-        void resolveSession(authSession);
+      (event, session) => {
+        if (!isActive) return;
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          setTimeout(async () => {
+            if (!isActive) return;
+            await fetchPilotData(session.user.id, session.user);
+            await tryAdminSetup(session);
+          }, 0);
+        } else {
+          setPilot(null);
+          setIsAdmin(false);
+          setIsPilotLoading(false);
+          setIsLoading(false);
+        }
       }
     );
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      await resolveSession(session);
+      if (!isActive) return;
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        setIsPilotLoading(true);
+        await fetchPilotData(session.user.id, session.user);
+        await tryAdminSetup(session);
+      } else {
+        setPilot(null);
+        setIsAdmin(false);
+        setIsPilotLoading(false);
+      }
+      if (!isActive) return;
+      setIsLoading(false);
     });
 
     return () => {
@@ -256,7 +233,6 @@ return () => {
     const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl } });
     return { error, userId: data.user?.id ?? null };
   };
-
 
   const signInWithDiscord = async (redirectPath = "/", mode: "login" | "register" = "login") => {
     const hasQuery = redirectPath.includes("?");

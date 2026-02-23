@@ -33,14 +33,6 @@ export default function RoutesPage() {
   // Rank order for comparison
   const rankOrder = ["cadet", "first_officer", "captain", "senior_captain", "commander"];
 
-  const { data: rankConfigs } = useQuery({
-    queryKey: ["rank-configs-all"],
-    queryFn: async () => {
-      const { data } = await supabase.from("rank_configs").select("*").eq("is_active", true).order("order_index");
-      return data || [];
-    },
-  });
-
   const pilotRankIndex = rankOrder.indexOf(pilot?.current_rank || "cadet");
 
   const canFlyRoute = (minRank: string | null) => {

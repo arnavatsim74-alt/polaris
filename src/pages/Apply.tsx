@@ -49,10 +49,26 @@ export default function ApplyPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus>("idle");
+// codex/fix-pilot-application-approval-process
+  const { user, signUp, signInWithDiscord, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isDiscordRegisterFlow = searchParams.get("oauth") === "register";
+
+  useEffect(() => {
+    if (!user) return;
+    if (isDiscordRegisterFlow) return;
+
+    // If a previous Discord register session exists without oauth=register,
+    // reset to normal application mode so password/email flow is visible again.
+    signOut();
+  }, [user, isDiscordRegisterFlow, signOut]);
+=======
   const { user, signUp, signInWithDiscord } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isDiscordRegisterFlow = searchParams.get("oauth") === "register";
+// latv
 
   // Check if user already has an application
   useEffect(() => {
@@ -285,7 +301,7 @@ export default function ApplyPage() {
                     />
                   </div>
                 </div>
-                {!user && (
+                {!isDiscordRegisterFlow && (
                   <div className="space-y-2">
                     <Label htmlFor="password">Password *</Label>
                     <Input

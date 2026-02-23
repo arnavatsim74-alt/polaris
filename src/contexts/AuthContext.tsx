@@ -164,27 +164,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    let isActive = true;
+let isActive = true;
 
-    const resolveSession = async (authSession: Session | null) => {
-      if (!isActive) return;
+const { data: { subscription } } = supabase.auth.onAuthStateChange(
+  (event, session) => {
+    if (!isActive) return;
+    setSession(session);
+    setUser(session?.user ?? null);
+    if (session?.user) {
+      setTimeout(async () => {
+        if (!isActive) return;
+        await fetchPilotData(session.user.id, session.user);
+        await tryAdminSetup(session);
+      }, 0);
+    } else {
+      setPilot(null);
+      setIsAdmin(false);
+      setIsPilotLoading(false);
+      setIsLoading(false);
+    }
+  }
+);
 
-      setSession(authSession);
-      setUser(authSession?.user ?? null);
+supabase.auth.getSession().then(async ({ data: { session } }) => {
+  if (!isActive) return;
+  setSession(session);
+  setUser(session?.user ?? null);
+  if (session?.user) {
+    setIsPilotLoading(true);
+    await fetchPilotData(session.user.id, session.user);
+    await tryAdminSetup(session);
+    if (!isActive) return;
+  } else {
+    setPilot(null);
+    setIsAdmin(false);
+    setIsPilotLoading(false);
+  }
+  setIsLoading(false);
+});
 
-      if (!authSession?.user) {
-        setPilot(null);
-        setIsAdmin(false);
-        setIsPilotLoading(false);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsPilotLoading(true);
-      await fetchPilotData(authSession.user.id, authSession.user);
-      await tryAdminSetup(authSession);
-
-      if (!isActive) return;
+return () => {
+  isActive = false;
+  subscription.unsubscribe();
+};
       setIsLoading(false);
     };
 

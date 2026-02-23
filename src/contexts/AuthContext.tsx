@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from("pilots")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
       if (pilotData) {
         if (authUser) {
@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select("role")
         .eq("user_id", userId)
         .eq("role", "admin")
-        .single();
+        .maybeSingle();
 
       setIsAdmin(!!roleData);
     } catch (error) {
@@ -164,41 +164,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+let isActive = true;
 
-        if (session?.user) {
-          setTimeout(async () => {
-            await fetchPilotData(session.user.id, session.user);
-            // After fetching, try admin setup if needed
-            await tryAdminSetup(session);
-          }, 0);
-        } else {
-          setPilot(null);
-          setIsAdmin(false);
-          setIsPilotLoading(false);
-        }
-        setIsLoading(false);
+const { data: { subscription } } = supabase.auth.onAuthStateChange(
+  (event, session) => {
+    if (!isActive) return;
+    setSession(session);
+    setUser(session?.user ?? null);
+    if (session?.user) {
+      setTimeout(async () => {
+        if (!isActive) return;
+        await fetchPilotData(session.user.id, session.user);
+        await tryAdminSetup(session);
+      }, 0);
+    } else {
+      setPilot(null);
+      setIsAdmin(false);
+      setIsPilotLoading(false);
+      setIsLoading(false);
+    }
+  }
+);
+
+supabase.auth.getSession().then(async ({ data: { session } }) => {
+  if (!isActive) return;
+  setSession(session);
+  setUser(session?.user ?? null);
+  if (session?.user) {
+    setIsPilotLoading(true);
+    await fetchPilotData(session.user.id, session.user);
+    await tryAdminSetup(session);
+    if (!isActive) return;
+  } else {
+    setPilot(null);
+    setIsAdmin(false);
+    setIsPilotLoading(false);
+  }
+  setIsLoading(false);
+});
+
+return () => {
+  isActive = false;
+  subscription.unsubscribe();
+};
+      setIsLoading(false);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, authSession) => {
+        void resolveSession(authSession);
       }
     );
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchPilotData(session.user.id, session.user);
-        await tryAdminSetup(session);
-      } else {
-        setPilot(null);
-        setIsAdmin(false);
-        setIsPilotLoading(false);
-      }
-      setIsLoading(false);
+      await resolveSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isActive = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

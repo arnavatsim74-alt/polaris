@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ProtectedRouteProps {
@@ -42,6 +42,39 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     checkRecruitmentExamAccess();
   }, [location.pathname, location.search, pilot, user]);
 
+  const redirectTarget = useMemo(() => {
+    if (isLoading || isPilotLoading || isCheckingRecruitmentAccess) return null;
+
+    if (!user) return "/auth";
+
+    if (!pilot) {
+      if (location.pathname.startsWith("/academy/exam/") && hasRecruitmentExamAccess) {
+        return null;
+      }
+      return "/auth";
+    }
+
+    if (requireAdmin && !isAdmin) return "/";
+
+    return null;
+  }, [hasRecruitmentExamAccess, isAdmin, isCheckingRecruitmentAccess, isLoading, isPilotLoading, location.pathname, pilot, requireAdmin, user]);
+
+  useEffect(() => {
+    if (!redirectTarget) return;
+
+    console.info("[ProtectedRoute] Redirecting", {
+      from: location.pathname,
+      to: redirectTarget,
+      isLoading,
+      isPilotLoading,
+      isCheckingRecruitmentAccess,
+      hasUser: !!user,
+      hasPilot: !!pilot,
+      isAdmin,
+      requireAdmin,
+    });
+  }, [isAdmin, isCheckingRecruitmentAccess, isLoading, isPilotLoading, location.pathname, pilot, redirectTarget, requireAdmin, user]);
+
   if (isLoading || isPilotLoading || isCheckingRecruitmentAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -53,19 +86,11 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     );
   }
 
-  if (!user) {
+  if (redirectTarget === "/auth") {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  if (!pilot) {
-    if (location.pathname.startsWith("/academy/exam/") && hasRecruitmentExamAccess) {
-      return <>{children}</>;
-    }
-
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (requireAdmin && !isAdmin) {
+  if (redirectTarget === "/") {
     return <Navigate to="/" replace />;
   }
 

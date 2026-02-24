@@ -120,10 +120,6 @@ export default function ProfileSettings() {
     if (!pilot?.id) return;
 
     const normalizedIfcId = ifcUserId.trim();
-    if (normalizedIfcId && !IFC_USER_ID_REGEX.test(normalizedIfcId)) {
-      toast.error("Infinite Flight Community ID must contain digits only (up to 20 characters)");
-      return;
-    }
 
     setIsSavingIfc(true);
     const { error } = await supabase
@@ -200,7 +196,7 @@ export default function ProfileSettings() {
               placeholder="e.g. 123456"
             />
             <p className="text-xs text-muted-foreground">
-              Numbers only. If left empty, the IFC ID will be cleared.
+              If left empty, the IFC ID will be cleared.
             </p>
           </div>
 

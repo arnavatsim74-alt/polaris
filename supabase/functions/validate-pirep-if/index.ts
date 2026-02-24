@@ -188,54 +188,62 @@ serve(async (req) => {
     }
 
     const usersLookupValue = ifcIdentifier || ifcCommunityId;
+    let resolvedUserId = "";
 
-    // Official IF flow:
-    // POST /users { discourseNames: ["delta737"] } -> userId
-    const usersUrl = buildLiveApiUrl("/users");
-    let usersRes: Response;
-    let usersPayload: Record<string, unknown>;
-
-    try {
-      ({ response: usersRes, payload: usersPayload } = await fetchJsonWithTimeout(usersUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ discourseNames: [usersLookupValue] }),
-      }));
-    } catch (error) {
-      const isTimeout = error instanceof DOMException && error.name === "AbortError";
-      return Response.json(
-        {
-          ...baseResponse,
-          reason: isTimeout ? `Users lookup timed out after ${REQUEST_TIMEOUT_MS}ms.` : `Users lookup failed: ${String(error)}`,
-        },
-        { status: 200, headers: corsHeaders },
-      );
+    if (ifcCommunityId) {
+      // IFC community ID is the IF user ID for the flights endpoint.
+      resolvedUserId = ifcCommunityId;
     }
-
-    if (!usersRes.ok) {
-      return Response.json(
-        {
-          ...baseResponse,
-          reason: `Users lookup endpoint returned ${usersRes.status}.`,
-          details: { status: usersRes.status, usersLookupValue, ifcIdentifier, ifcCommunityId },
-        },
-        { status: 200, headers: corsHeaders },
-      );
-    }
-
-    const users = getUsersArray(usersPayload);
-    const resolvedUser = users[0] ?? {};
-    const resolvedUserId = pickFirstString([resolvedUser.userId, resolvedUser.user_id, resolvedUser.id]);
 
     if (!resolvedUserId) {
-      return Response.json(
-        {
-          ...baseResponse,
-          reason: "No user found for provided IFC username.",
-          details: { usersLookupValue, ifcIdentifier, ifcCommunityId, usersFound: users.length },
-        },
-        { status: 200, headers: corsHeaders },
-      );
+      // Official IF flow for username-based lookup:
+      // POST /users { discourseNames: ["delta737"] } -> userId
+      const usersUrl = buildLiveApiUrl("/users");
+      let usersRes: Response;
+      let usersPayload: Record<string, unknown>;
+
+      try {
+        ({ response: usersRes, payload: usersPayload } = await fetchJsonWithTimeout(usersUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ discourseNames: [usersLookupValue] }),
+        }));
+      } catch (error) {
+        const isTimeout = error instanceof DOMException && error.name === "AbortError";
+        return Response.json(
+          {
+            ...baseResponse,
+            reason: isTimeout ? `Users lookup timed out after ${REQUEST_TIMEOUT_MS}ms.` : `Users lookup failed: ${String(error)}`,
+          },
+          { status: 200, headers: corsHeaders },
+        );
+      }
+
+      if (!usersRes.ok) {
+        return Response.json(
+          {
+            ...baseResponse,
+            reason: `Users lookup endpoint returned ${usersRes.status}.`,
+            details: { status: usersRes.status, usersLookupValue, ifcIdentifier, ifcCommunityId },
+          },
+          { status: 200, headers: corsHeaders },
+        );
+      }
+
+      const users = getUsersArray(usersPayload);
+      const resolvedUser = users[0] ?? {};
+      resolvedUserId = pickFirstString([resolvedUser.userId, resolvedUser.user_id, resolvedUser.id]);
+
+      if (!resolvedUserId) {
+        return Response.json(
+          {
+            ...baseResponse,
+            reason: "No user found for provided IFC username.",
+            details: { usersLookupValue, ifcIdentifier, ifcCommunityId, usersFound: users.length },
+          },
+          { status: 200, headers: corsHeaders },
+        );
+      }
     }
 
     const flightsUrl = buildLiveApiUrl(`/users/${encodeURIComponent(resolvedUserId)}/flights`);

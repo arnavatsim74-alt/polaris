@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -344,11 +344,18 @@ export default function AdminPireps() {
   const filteredPireps = pireps?.filter((pirep) => {
     const matchesSearch =
       searchQuery === "" ||
-      pirep.flight_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(pirep.flight_number || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       pirep.pilots?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       pirep.pilots?.pid?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
+
+  useEffect(() => {
+    if (!isLoading && statusFilter === "pending" && (pireps?.length || 0) === 0) {
+      setStatusFilter("all");
+      toast.info("No pending PIREPs found. Showing all statuses.");
+    }
+  }, [isLoading, pireps, statusFilter]);
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;

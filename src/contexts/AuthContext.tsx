@@ -90,11 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchPilotData = async (userId: string, authUser?: User) => {
     setIsPilotLoading(true);
     try {
-      const { data: pilotData } = await supabase
+      const { data: pilotData, error: pilotError } = await supabase
         .from("pilots")
         .select("*")
         .eq("user_id", userId)
         .single();
+
+      if (pilotError) {
+        throw pilotError;
+      }
 
       if (pilotData) {
         if (authUser) {
@@ -123,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select("role")
         .eq("user_id", userId)
         .eq("role", "admin")
-        .single();
+        .maybeSingle();
 
       setIsAdmin(!!roleData);
     } catch (error) {
@@ -170,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          setIsPilotLoading(true);
           setTimeout(async () => {
             await fetchPilotData(session.user.id, session.user);
             // After fetching, try admin setup if needed
@@ -187,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        setIsPilotLoading(true);
         await fetchPilotData(session.user.id, session.user);
         await tryAdminSetup(session);
       } else {

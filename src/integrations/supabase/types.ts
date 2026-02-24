@@ -1260,6 +1260,11 @@ export type Database = {
           reviewed_by: string | null
           status: Database["public"]["Enums"]["pirep_status"] | null
           status_reason: string | null
+          validation_checked_at: string | null
+          validation_details: Json | null
+          validation_override_by: string | null
+          validation_override_reason: string | null
+          validation_status: Database["public"]["Enums"]["pirep_validation_status"] | null
         }
         Insert: {
           aircraft_icao: string
@@ -1280,6 +1285,11 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["pirep_status"] | null
           status_reason?: string | null
+          validation_checked_at?: string | null
+          validation_details?: Json | null
+          validation_override_by?: string | null
+          validation_override_reason?: string | null
+          validation_status?: Database["public"]["Enums"]["pirep_validation_status"] | null
         }
         Update: {
           aircraft_icao?: string
@@ -1300,6 +1310,11 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["pirep_status"] | null
           status_reason?: string | null
+          validation_checked_at?: string | null
+          validation_details?: Json | null
+          validation_override_by?: string | null
+          validation_override_reason?: string | null
+          validation_status?: Database["public"]["Enums"]["pirep_validation_status"] | null
         }
         Relationships: [
           {
@@ -1551,6 +1566,7 @@ export type Database = {
         | "senior_captain"
         | "commander"
       pirep_status: "pending" | "approved" | "denied" | "on_hold"
+      pirep_validation_status: "validated" | "not_validated" | "error"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1689,6 +1705,7 @@ export const Constants = {
         "commander",
       ],
       pirep_status: ["pending", "approved", "denied", "on_hold"],
+      pirep_validation_status: ["validated", "not_validated", "error"],
     },
   },
 } as const

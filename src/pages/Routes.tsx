@@ -55,14 +55,11 @@ export default function RoutesPage() {
   const { data: aircraft } = useQuery({
     queryKey: ["routes-aircraft-filter-options"],
     queryFn: async () => {
-      const { data } = await supabase.from("aircraft").select("icao_code");
-      return Array.from(
-        new Set(
-          (data || [])
-            .map((ac) => String(ac.icao_code || "").trim().toUpperCase())
-            .filter(Boolean)
-        )
-      ).sort();
+      const { data } = await supabase.from("aircraft").select("icao_code").order("icao_code");
+      const uniqueCodes = Array.from(
+        new Set((data || []).map((ac) => ac.icao_code).filter(Boolean))
+      );
+      return uniqueCodes;
     },
   });
 

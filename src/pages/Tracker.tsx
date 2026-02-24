@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-const DEFAULT_TRACKER_URL = "https://ramva-tracker.lovable.app/";
+const DEFAULT_TRACKER_URL = "https://ramva-tracker.vercel.app/";
 
 export default function Tracker() {
   const { data: trackerUrl } = useQuery({

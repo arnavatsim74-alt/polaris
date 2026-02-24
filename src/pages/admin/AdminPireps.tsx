@@ -31,7 +31,7 @@ type ValidationMetadata = {
 export default function AdminPireps() {
   const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPirep, setSelectedPirep] = useState<any>(null);
   const [actionType, setActionType] = useState<"approve" | "deny" | "hold" | null>(null);

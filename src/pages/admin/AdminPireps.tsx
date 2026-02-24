@@ -102,7 +102,7 @@ export default function AdminPireps() {
         .from("pireps")
         .select(`
           *,
-          pilots (pid, full_name, ifc_username)
+          pilots (pid, full_name, ifc_user_id, ifc_username)
         `)
         .order("created_at", { ascending: false });
 
@@ -229,19 +229,31 @@ export default function AdminPireps() {
 
   const validatePirepMutation = useMutation({
     mutationFn: async (pirep: any) => {
-      const { data, error } = await supabase.functions.invoke("validate-pirep-if", {
-        body: {
-          pirepId: pirep.id,
-          pilotId: pirep.pilot_id,
-          flightNumber: pirep.flight_number,
-          depIcao: pirep.dep_icao,
-          arrIcao: pirep.arr_icao,
-          aircraftIcao: pirep.aircraft_icao,
-          flightDate: pirep.flight_date,
-          flightHours: pirep.flight_hours,
-          ifcIdentifier: pirep.pilots?.ifc_username,
-        },
-      });
+      const ifcCommunityId = pirep.pilots?.ifc_user_id ?? null;
+      const ifcIdentifier = pirep.pilots?.ifc_username ?? null;
+
+      // Guard: if neither IFC field is set on the pilot profile, fail early
+      // with a clear message instead of getting a confusing "missing fields" error
+      if (!ifcCommunityId && !ifcIdentifier) {
+        throw new Error(
+          `Pilot "${pirep.pilots?.full_name ?? pirep.pilot_id}" has no IFC username or community ID set on their profile. Ask them to update their profile before validating.`
+        );
+      }
+
+      const body = {
+        pirepId: pirep.id,
+        pilotId: pirep.pilot_id,
+        dep_icao: pirep.dep_icao,
+        arr_icao: pirep.arr_icao,
+        ...(ifcCommunityId ? { ifc_community_id: ifcCommunityId } : {}),
+        ...(ifcIdentifier  ? { ifc_identifier:   ifcIdentifier  } : {}),
+      };
+
+      console.debug("[validate-pirep-if] sending body:", body);
+
+      const { data, error } = await supabase.functions.invoke("validate-pirep-if", { body });
+
+      console.debug("[validate-pirep-if] response:", data, "error:", error);
 
       if (error) throw error;
       return data;

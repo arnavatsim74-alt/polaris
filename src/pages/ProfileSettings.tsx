@@ -127,7 +127,7 @@ export default function ProfileSettings() {
   const saveIfcUsername = async () => {
     if (!pilot?.id) return;
 
-    const normalizedIfcUsername = ifcUsername.trim().replace(/^@+/, "");
+    const normalizedIfcId = ifcUserId.trim();
 
     setIsSavingIfc(true);
     const { error } = await supabase
@@ -204,7 +204,7 @@ export default function ProfileSettings() {
               placeholder="username without @"
             />
             <p className="text-xs text-muted-foreground">
-              If left empty, the IFC username will be cleared.
+              If left empty, the IFC ID will be cleared.
             </p>
           </div>
 

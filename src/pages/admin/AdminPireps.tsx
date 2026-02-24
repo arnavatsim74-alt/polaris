@@ -11,17 +11,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Shield, Search, Check, X, Pause, FileText, Plus, Trash2, Briefcase } from "lucide-react";
+import { Shield, Search, Check, X, Pause, FileText, Plus, Briefcase } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { sendNotification } from "@/lib/notifications";
 
 export default function AdminPireps() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,7 +37,7 @@ export default function AdminPireps() {
     "SunCountry Airlines", "IndiGo", "Oman Air", "Others",
   ];
 
-  const { data: operators, refetch: refetchOperators } = useQuery({
+  const { data: operators } = useQuery({
     queryKey: ["admin-operators"],
     queryFn: async () => {
       const { data } = await supabase.from("site_settings").select("*").eq("key", "pirep_operators").maybeSingle();
@@ -110,28 +109,81 @@ export default function AdminPireps() {
     return config ? config.name : `×${value}`;
   };
 
+  const getValidationBadgeVariant = (validationStatus: string | null) => {
+    if (validationStatus === "validated") return "default" as const;
+    if (validationStatus === "not_validated") return "secondary" as const;
+    return "destructive" as const;
+  };
+
+  const getValidationLabel = (validationStatus: string | null) => {
+    if (validationStatus === "validated") return "Validated";
+    if (validationStatus === "not_validated") return "Not validated";
+    if (validationStatus === "error") return "Validation error";
+    return "Not checked";
+  };
+
   const updatePirepMutation = useMutation({
     mutationFn: async ({
       pirepId,
       status,
       reason,
+      overrideReason,
     }: {
       pirepId: string;
       status: "pending" | "approved" | "denied" | "on_hold";
       reason?: string;
+      overrideReason?: string;
     }) => {
+      const pirep = pireps?.find((p: any) => p.id === pirepId);
+      const reviewedAt = new Date().toISOString();
+
+      if (status === "approved") {
+        const isValidated = pirep?.validation_status === "validated";
+        const validationPayload: Record<string, unknown> = {
+          validation_status: isValidated ? "validated" : "not_validated",
+          validation_checked_at: reviewedAt,
+          validation_details: {
+            source: "admin_manual_review",
+            checked_at: reviewedAt,
+            checked_by: user?.id || null,
+            previous_validation_status: pirep?.validation_status || null,
+            pirep_snapshot: {
+              id: pirep?.id || pirepId,
+              flight_number: pirep?.flight_number || null,
+              dep_icao: pirep?.dep_icao || null,
+              arr_icao: pirep?.arr_icao || null,
+              flight_date: pirep?.flight_date || null,
+            },
+          },
+        };
+
+        if (!isValidated) {
+          validationPayload.validation_override_by = user?.id || null;
+          validationPayload.validation_override_reason = overrideReason?.trim() || "Approved without validated auto-check";
+        } else {
+          validationPayload.validation_override_by = null;
+          validationPayload.validation_override_reason = null;
+        }
+
+        const { error: validationError } = await supabase
+          .from("pireps")
+          .update(validationPayload)
+          .eq("id", pirepId);
+
+        if (validationError) throw validationError;
+      }
+
       const { error } = await supabase
         .from("pireps")
         .update({
           status,
           status_reason: reason || null,
-          reviewed_at: new Date().toISOString(),
+          reviewed_at: reviewedAt,
         })
         .eq("id", pirepId);
 
       if (error) throw error;
 
-      const pirep = pireps?.find((p: any) => p.id === pirepId);
       if (pirep?.pilot_id && ["approved", "denied", "on_hold"].includes(status)) {
         await sendNotification({
           recipientPilotId: pirep.pilot_id,
@@ -158,17 +210,31 @@ export default function AdminPireps() {
 
   const handleAction = (pirep: any, action: "approve" | "deny" | "hold") => {
     if (action === "approve") {
-      updatePirepMutation.mutate({ pirepId: pirep.id, status: "approved" });
-    } else {
       setSelectedPirep(pirep);
-      setActionType(action);
+      setActionType("approve");
+      setReason("");
+      return;
     }
+
+    setSelectedPirep(pirep);
+    setActionType(action);
   };
 
   const submitAction = () => {
     if (!selectedPirep || !actionType) return;
+
     if ((actionType === "deny" || actionType === "hold") && !reason.trim()) {
       toast.error("Please provide a reason");
+      return;
+    }
+
+    if (actionType === "approve") {
+      const isValidated = selectedPirep.validation_status === "validated";
+      updatePirepMutation.mutate({
+        pirepId: selectedPirep.id,
+        status: "approved",
+        overrideReason: isValidated ? undefined : reason,
+      });
       return;
     }
 
@@ -263,6 +329,7 @@ export default function AdminPireps() {
                     <th className="text-left py-3 px-2 font-medium">Hours</th>
                     <th className="text-left py-3 px-2 font-medium">Multiplier</th>
                     <th className="text-left py-3 px-2 font-medium">Status</th>
+                    <th className="text-left py-3 px-2 font-medium">Validation</th>
                     <th className="text-right py-3 px-2 font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -300,6 +367,23 @@ export default function AdminPireps() {
                         <span className="font-mono text-xs" title={`×${pirep.multiplier}`}>{getMultiplierName(pirep.multiplier)}</span>
                       </td>
                       <td className="py-3 px-2"><StatusBadge status={pirep.status} classMap={{ on_hold: "status-on-hold" }} /></td>
+                      <td className="py-3 px-2">
+                        <div className="space-y-1">
+                          <Badge variant={getValidationBadgeVariant(pirep.validation_status)} className="capitalize">
+                            {getValidationLabel(pirep.validation_status)}
+                          </Badge>
+                          {pirep.validation_checked_at && (
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(pirep.validation_checked_at), "MMM dd, yyyy HH:mm")}
+                            </p>
+                          )}
+                          {pirep.validation_override_reason && (
+                            <p className="text-xs text-muted-foreground max-w-[230px] truncate" title={pirep.validation_override_reason}>
+                              Override: {pirep.validation_override_reason}
+                            </p>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 px-2 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {pirep.status !== "approved" && (
@@ -372,15 +456,17 @@ export default function AdminPireps() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {actionType === "deny" ? "Deny PIREP" : "Put PIREP On Hold"}
+              {actionType === "deny" ? "Deny PIREP" : actionType === "hold" ? "Put PIREP On Hold" : "Approve PIREP"}
             </DialogTitle>
             <DialogDescription>
-              Please provide a reason for this action.
+              {actionType === "approve"
+                ? "Approving an unvalidated PIREP can include an optional override reason for traceability."
+                : "Please provide a reason for this action."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Textarea
-              placeholder="Enter reason..."
+              placeholder={actionType === "approve" ? "Optional override reason..." : "Enter reason..."}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={4}
@@ -395,7 +481,7 @@ export default function AdminPireps() {
               onClick={submitAction}
               disabled={updatePirepMutation.isPending}
             >
-              {actionType === "deny" ? "Deny" : "Put On Hold"}
+              {actionType === "deny" ? "Deny" : actionType === "hold" ? "Put On Hold" : "Approve"}
             </Button>
           </DialogFooter>
         </DialogContent>

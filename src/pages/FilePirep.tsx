@@ -41,6 +41,7 @@ export default function FilePirep() {
   const [cargoKg, setCargoKg] = useState("");
   const [showAllAircraft, setShowAllAircraft] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAcarsLoading, setIsAcarsLoading] = useState(false);
 
   // Pre-fill from URL params (from Routes / ROTW "File PIREP" buttons)
   useEffect(() => {
@@ -148,6 +149,45 @@ export default function FilePirep() {
 
   const currentMultiplierValue = parseFloat(selectedMultiplier) || 1;
 
+
+  const handleLoadAcars = async () => {
+    if (!pilot?.ifc_username) {
+      toast.error("Set your IFC username in Profile Settings first.");
+      return;
+    }
+
+    setIsAcarsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("validate-pirep-if", {
+        body: { ifc_identifier: pilot.ifc_username, latest_only: true },
+      });
+
+      if (error) throw error;
+
+      const latestFlight = data?.latestFlight;
+      if (!latestFlight) {
+        toast.error("No recent Infinite Flight log found.");
+        return;
+      }
+
+      if (latestFlight.callsign) setFlightNumber(String(latestFlight.callsign).toUpperCase());
+      if (latestFlight.originAirport) setDepIcao(String(latestFlight.originAirport).toUpperCase());
+      if (latestFlight.destinationAirport) setArrIcao(String(latestFlight.destinationAirport).toUpperCase());
+      if (latestFlight.created) setFlightDate(new Date(latestFlight.created));
+      if (typeof latestFlight.totalTime === "number") {
+        const hours = latestFlight.totalTime > 24 ? latestFlight.totalTime / 3600 : latestFlight.totalTime;
+        if (Number.isFinite(hours) && hours > 0) setFlightHours(hours.toFixed(1));
+      }
+
+      toast.success("ACARS loaded from your latest flight log.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load ACARS data");
+    } finally {
+      setIsAcarsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -243,6 +283,10 @@ export default function FilePirep() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            <Button type="button" variant="outline" onClick={handleLoadAcars} disabled={isLoading || isAcarsLoading} className="w-full md:w-auto">
+              {(isAcarsLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              ACARS
+            </Button>
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground">Flight Details</h3>
               <div className="grid gap-4 md:grid-cols-2">

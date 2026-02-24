@@ -102,7 +102,7 @@ export default function AdminPireps() {
         .from("pireps")
         .select(`
           *,
-          pilots (pid, full_name, ifc_user_id, ifc_username)
+          pilots (pid, full_name, ifc_username)
         `)
         .order("created_at", { ascending: false });
 
@@ -229,14 +229,12 @@ export default function AdminPireps() {
 
   const validatePirepMutation = useMutation({
     mutationFn: async (pirep: any) => {
-      const ifcCommunityId = pirep.pilots?.ifc_user_id ?? null;
       const ifcIdentifier = pirep.pilots?.ifc_username ?? null;
 
-      // Guard: if neither IFC field is set on the pilot profile, fail early
-      // with a clear message instead of getting a confusing "missing fields" error
-      if (!ifcCommunityId && !ifcIdentifier) {
+      // Guard: require IFC username on pilot profile before validation
+      if (!ifcIdentifier) {
         throw new Error(
-          `Pilot "${pirep.pilots?.full_name ?? pirep.pilot_id}" has no IFC username or community ID set on their profile. Ask them to update their profile before validating.`
+          `Pilot "${pirep.pilots?.full_name ?? pirep.pilot_id}" has no IFC username set on their profile. Ask them to update profile before validating.`
         );
       }
 
@@ -245,8 +243,7 @@ export default function AdminPireps() {
         pilotId: pirep.pilot_id,
         dep_icao: pirep.dep_icao,
         arr_icao: pirep.arr_icao,
-        ...(ifcCommunityId ? { ifc_community_id: ifcCommunityId } : {}),
-        ...(ifcIdentifier  ? { ifc_identifier:   ifcIdentifier  } : {}),
+        ...(ifcIdentifier ? { ifc_identifier: ifcIdentifier } : {}),
       };
 
       console.debug("[validate-pirep-if] sending body:", body);

@@ -53,7 +53,7 @@ export default function RoutesPage() {
   });
 
   const { data: aircraft } = useQuery({
-    queryKey: ["aircraft"],
+    queryKey: ["routes-aircraft-filter-options"],
     queryFn: async () => {
       const { data } = await supabase.from("aircraft").select("icao_code").order("icao_code");
       const uniqueCodes = Array.from(
@@ -82,7 +82,7 @@ export default function RoutesPage() {
   const filteredRoutes = routes?.filter((route) => {
     const matchesDep = depFilter === "" || route.dep_icao.includes(depFilter.toUpperCase());
     const matchesArr = arrFilter === "" || route.arr_icao.includes(arrFilter.toUpperCase());
-    const matchesAircraft = aircraftFilter === "all" || route.aircraft_icao === aircraftFilter;
+    const matchesAircraft = aircraftFilter === "all" || String(route.aircraft_icao || "").trim().toUpperCase() === aircraftFilter;
     const matchesType = typeFilter === "all" || route.route_type === typeFilter;
     return matchesDep && matchesArr && matchesAircraft && matchesType;
   });

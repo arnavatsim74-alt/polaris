@@ -23,13 +23,8 @@ begin
   end if;
 
   v_pid := upper(trim(p_pid));
-// codex/fix-pilot-application-approval-process
   if v_pid !~ '^AFLV[A-Z0-9]{3}$' then
     raise exception 'Callsign must be in AFLVXXX format';
-=======
-  if v_pid !~ '^AFLV[A-Z0-9]{3}$' then
-    raise exception 'Callsign must be in AFLVXXX format';
-// latv
   end if;
 
   select * into v_app

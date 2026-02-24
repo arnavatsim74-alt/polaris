@@ -53,10 +53,16 @@ export default function RoutesPage() {
   });
 
   const { data: aircraft } = useQuery({
-    queryKey: ["aircraft"],
+    queryKey: ["routes-aircraft-filter-options"],
     queryFn: async () => {
-      const { data } = await supabase.from("aircraft").select("*").order("icao_code");
-      return data || [];
+      const { data } = await supabase.from("aircraft").select("icao_code");
+      return Array.from(
+        new Set(
+          (data || [])
+            .map((ac) => String(ac.icao_code || "").trim().toUpperCase())
+            .filter(Boolean)
+        )
+      ).sort();
     },
   });
 
@@ -79,7 +85,7 @@ export default function RoutesPage() {
   const filteredRoutes = routes?.filter((route) => {
     const matchesDep = depFilter === "" || route.dep_icao.includes(depFilter.toUpperCase());
     const matchesArr = arrFilter === "" || route.arr_icao.includes(arrFilter.toUpperCase());
-    const matchesAircraft = aircraftFilter === "all" || route.aircraft_icao === aircraftFilter;
+    const matchesAircraft = aircraftFilter === "all" || String(route.aircraft_icao || "").trim().toUpperCase() === aircraftFilter;
     const matchesType = typeFilter === "all" || route.route_type === typeFilter;
     return matchesDep && matchesArr && matchesAircraft && matchesType;
   });
@@ -179,9 +185,9 @@ export default function RoutesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Aircraft</SelectItem>
-                  {aircraft?.map((ac) => (
-                    <SelectItem key={ac.icao_code} value={ac.icao_code}>
-                      {ac.icao_code}
+                  {aircraft?.map((icaoCode) => (
+                    <SelectItem key={icaoCode} value={icaoCode}>
+                      {icaoCode}
                     </SelectItem>
                   ))}
                 </SelectContent>

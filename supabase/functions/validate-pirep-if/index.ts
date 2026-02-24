@@ -76,12 +76,15 @@ interface ValidateInput {
   ifcUsername?: string;
   ifcCommunityId?: string;
   ifc_community_id?: string;
+  latestOnly?: boolean;
+  latest_only?: boolean;
 }
 
 interface ValidationResponse {
   validated: boolean;
   matchedFlights: UserFlight[];
   firstMatchedFlight: UserFlight | null;
+  latestFlight?: UserFlight | null;
   reason?: string;
   details?: Record<string, unknown>;
 }
@@ -175,6 +178,7 @@ serve(async (req) => {
     const pilotId    = pickFirstString([input.pilotId, input.pilot_id]);
     const depIcao    = normalizeIcao(pickFirstString([input.depIcao, input.dep_icao]));
     const arrIcao    = normalizeIcao(pickFirstString([input.arrIcao, input.arr_icao]));
+    const latestOnly = Boolean(input.latestOnly ?? input.latest_only);
     const ifcIdentifier = pickFirstString([
       input.ifcIdentifier,
       input.ifc_identifier,
@@ -184,11 +188,13 @@ serve(async (req) => {
     ]);
     const ifcCommunityId = pickFirstString([input.ifcCommunityId, input.ifc_community_id]);
 
-    if (!depIcao || !arrIcao || (!ifcIdentifier && !ifcCommunityId)) {
+    if ((!latestOnly && (!depIcao || !arrIcao)) || (!ifcIdentifier && !ifcCommunityId)) {
       return Response.json(
         {
           ...baseResponse,
-          reason: "Missing required fields: depIcao/dep_icao, arrIcao/arr_icao, and either ifcIdentifier (or discourseName/ifcUsername) or ifcCommunityId.",
+          reason: latestOnly
+            ? "Missing required fields: either ifcIdentifier (or discourseName/ifcUsername) or ifcCommunityId."
+            : "Missing required fields: depIcao/dep_icao, arrIcao/arr_icao, and either ifcIdentifier (or discourseName/ifcUsername) or ifcCommunityId.",
           details: { receivedKeys: Object.keys(input ?? {}) },
         },
         { status: 200, headers: corsHeaders },
@@ -341,6 +347,26 @@ serve(async (req) => {
             totalCount: flightsEnvelope.result?.totalCount ?? 0,
           },
         },
+        { status: 200, headers: corsHeaders },
+      );
+    }
+
+    if (latestOnly) {
+      return Response.json(
+        {
+          ...baseResponse,
+          latestFlight: flights[0] ?? null,
+          details: {
+            pirepId,
+            pilotId,
+            ifcIdentifier,
+            ifcCommunityId,
+            resolvedUserId,
+            pageChecked: 1,
+            flightsOnPage: flights.length,
+            totalFlights: flightsEnvelope.result?.totalCount ?? 0,
+          },
+        } satisfies ValidationResponse,
         { status: 200, headers: corsHeaders },
       );
     }

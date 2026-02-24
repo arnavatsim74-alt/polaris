@@ -218,6 +218,77 @@ Additional fallback by Discord username (set in profile settings):
 
 If a user has signed into the VA site with Discord, the bot can file their PIREP without manual ID mapping.
 
+## Infinite Flight PIREP validation (Supabase Edge Function)
+
+Use `supabase/functions/validate-pirep-if/index.ts` to validate a submitted PIREP route against Infinite Flight logs **without exposing IF API keys in frontend code**.
+
+### 1) Deploy from CLI (recommended)
+
+```bash
+supabase functions deploy validate-pirep-if
+```
+
+### 2) Set required secret in Supabase Dashboard
+
+In Supabase Dashboard:
+
+- Go to **Project Settings → Edge Functions → Secrets**
+- Add:
+  - `IF_API_KEY=<your_infinite_flight_api_key>`
+  - optional: `IF_REQUEST_TIMEOUT_MS=8000`
+
+CLI equivalent:
+
+```bash
+supabase secrets set IF_API_KEY=<your_infinite_flight_api_key>
+supabase secrets set IF_REQUEST_TIMEOUT_MS=8000
+```
+
+### 3) How it gets invoked from the app
+
+When a user clicks **Submit PIREP**, frontend should call the edge function via Supabase client:
+
+```ts
+const { data, error } = await supabase.functions.invoke("validate-pirep-if", {
+  body: {
+    pirepId: pirep.id,
+    pilotId: pirep.pilot_id,
+    depIcao: pirep.dep_icao,
+    arrIcao: pirep.arr_icao,
+    ifcIdentifier: pilot.ifc_username, // discourse/IFC username (e.g. "delta737")
+  },
+});
+```
+
+Accepted aliases are also supported:
+
+- `depIcao` or `dep_icao`
+- `arrIcao` or `arr_icao`
+- `ifcIdentifier` or `ifc_identifier` or `discourseName` or `discourse_name` or `ifcUsername`
+
+### 4) What the function does internally
+
+1. `POST /public/v2/users` with `discourseNames: ["<username>"]`
+2. Reads returned `userId`
+3. `GET /public/v2/users/{userId}/flights`
+4. Compares up to 10 recent logs using:
+   - `originAirport` vs submitted departure ICAO
+   - `destinationAirport` vs submitted arrival ICAO
+
+### 5) Response contract
+
+```json
+{
+  "validated": true,
+  "matchedFlights": [],
+  "firstMatchedFlight": null,
+  "reason": "optional when not validated",
+  "details": {}
+}
+```
+
+`validated: false` is non-blocking by design so admins can still choose “approve anyway” in the UI.
+
 ### 6) Pilot Profile Settings: Discord username
 
 Pilots can now set their Discord username at `/profile`.

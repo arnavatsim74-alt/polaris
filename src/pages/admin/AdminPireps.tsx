@@ -102,7 +102,7 @@ export default function AdminPireps() {
         .from("pireps")
         .select(`
           *,
-          pilots (pid, full_name)
+          pilots (pid, full_name, ifc_username)
         `)
         .order("created_at", { ascending: false });
 
@@ -147,19 +147,21 @@ export default function AdminPireps() {
       status,
       reason,
       overrideReason,
+      isValidated,
     }: {
       pirepId: string;
       status: "pending" | "approved" | "denied" | "on_hold";
       reason?: string;
       overrideReason?: string;
+      isValidated?: boolean;
     }) => {
       const pirep = pireps?.find((p: any) => p.id === pirepId);
       const reviewedAt = new Date().toISOString();
 
       if (status === "approved") {
-        const isValidated = pirep?.validation_status === "validated";
+        const isValidatedForApproval = typeof isValidated === "boolean" ? isValidated : pirep?.validation_status === "validated";
         const validationPayload: Record<string, unknown> = {
-          validation_status: isValidated ? "validated" : "not_validated",
+          validation_status: isValidatedForApproval ? "validated" : "not_validated",
           validation_checked_at: reviewedAt,
           validation_details: {
             source: "admin_manual_review",
@@ -176,7 +178,7 @@ export default function AdminPireps() {
           },
         };
 
-        if (!isValidated) {
+        if (!isValidatedForApproval) {
           validationPayload.validation_override_by = user?.id || null;
           validationPayload.validation_override_reason = overrideReason?.trim() || "Approved without validated auto-check";
         } else {
@@ -227,7 +229,7 @@ export default function AdminPireps() {
 
   const validatePirepMutation = useMutation({
     mutationFn: async (pirep: any) => {
-      const { data, error } = await supabase.functions.invoke("validate-pirep", {
+      const { data, error } = await supabase.functions.invoke("validate-pirep-if", {
         body: {
           pirepId: pirep.id,
           pilotId: pirep.pilot_id,
@@ -237,6 +239,7 @@ export default function AdminPireps() {
           aircraftIcao: pirep.aircraft_icao,
           flightDate: pirep.flight_date,
           flightHours: pirep.flight_hours,
+          ifcIdentifier: pirep.pilots?.ifc_username,
         },
       });
 
@@ -245,38 +248,46 @@ export default function AdminPireps() {
     },
   });
 
+  const runValidationForPirep = async (pirep: any) => {
+    setValidationStatus("validating");
+    setValidationMetadata(null);
+
+    try {
+      const data = await validatePirepMutation.mutateAsync(pirep);
+      const isValidated = Boolean(data?.validated ?? data?.is_validated ?? data?.isValid);
+
+      setValidationStatus(isValidated ? "validated" : "not_validated");
+      setValidationMetadata({
+        source: data?.source,
+        matchedLogId: data?.matched_log_id ?? data?.flight_log_id,
+        confidence: typeof data?.confidence === "number" ? data.confidence : undefined,
+        message: data?.reason ?? data?.message,
+      });
+
+      return isValidated;
+    } catch (error) {
+      console.error(error);
+      setValidationStatus("error");
+      setValidationMetadata({
+        message: "Validation request failed. Please try again.",
+      });
+      return null;
+    }
+  };
+
   const handleAction = async (pirep: any, action: "approve" | "deny" | "hold") => {
     if (action === "approve") {
       setSelectedPirep(pirep);
       setActionType("approve");
-      setValidationStatus("validating");
-      setValidationMetadata(null);
-
-      try {
-        const data = await validatePirepMutation.mutateAsync(pirep);
-        const isValidated = Boolean(data?.validated ?? data?.is_validated ?? data?.isValid);
-
-        setValidationStatus(isValidated ? "validated" : "not_validated");
-        setValidationMetadata({
-          source: data?.source,
-          matchedLogId: data?.matched_log_id ?? data?.flight_log_id,
-          confidence: typeof data?.confidence === "number" ? data.confidence : undefined,
-          message: data?.message,
-        });
-      } catch (error) {
-        console.error(error);
-        setValidationStatus("error");
-        setValidationMetadata({
-          message: "Validation request failed. Please try again.",
-        });
-      }
-    } else {
-      setSelectedPirep(pirep);
-      setActionType(action);
+      await runValidationForPirep(pirep);
+      return;
     }
+
+    setSelectedPirep(pirep);
+    setActionType(action);
   };
 
-  const submitAction = () => {
+  const submitAction = async () => {
     if (!selectedPirep || !actionType) return;
 
     if ((actionType === "deny" || actionType === "hold") && !reason.trim()) {
@@ -285,11 +296,27 @@ export default function AdminPireps() {
     }
 
     if (actionType === "approve") {
-      const isValidated = selectedPirep.validation_status === "validated";
+      let currentValidationStatus = validationStatus;
+
+      if (currentValidationStatus === "idle") {
+        const freshResult = await runValidationForPirep(selectedPirep);
+        if (freshResult === null) return;
+        currentValidationStatus = freshResult ? "validated" : "not_validated";
+      }
+
+      if (currentValidationStatus === "validating") return;
+
+      if (currentValidationStatus === "error") {
+        toast.error("Validation failed. Please try again before approving.");
+        return;
+      }
+
+      const isValidated = currentValidationStatus === "validated";
       updatePirepMutation.mutate({
         pirepId: selectedPirep.id,
         status: "approved",
-        overrideReason: isValidated ? undefined : reason,
+        isValidated,
+        overrideReason: isValidated ? undefined : (validationMetadata?.message || "Approved without validated auto-check"),
       });
       return;
     }
@@ -560,7 +587,7 @@ export default function AdminPireps() {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => selectedPirep && updatePirepMutation.mutate({ pirepId: selectedPirep.id, status: "approved" })}
+                  onClick={() => void submitAction()}
                   disabled={validationStatus === "validating" || validationStatus === "idle" || validationStatus === "error" || updatePirepMutation.isPending}
                 >
                   Approve

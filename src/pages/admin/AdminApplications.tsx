@@ -289,7 +289,7 @@ export default function AdminApplications() {
               <p><strong>Age Range:</strong> {selectedApp?.age_range || "N/A"}</p>
               <p><strong>Other VA/VO:</strong> {selectedApp?.other_va_membership || "N/A"}</p>
               <p><strong>Heard About AFLV:</strong> {selectedApp?.hear_about_aflv || "N/A"}</p>
-              {selectedApp?.ifc_profile_url && <p><strong>IFC Profile URL:</strong> {selectedApp?.ifc_profile_url}</p>}
+              {selectedApp?.ifc_profile_url && <p><strong>IFC Username:</strong> {selectedApp?.ifc_profile_url}</p>}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Assigned PID</label>

@@ -24,6 +24,8 @@ interface ValidateInput {
   discourseName?: string;
   discourse_name?: string;
   ifcUsername?: string;
+  ifcCommunityId?: string;
+  ifc_community_id?: string;
 }
 
 interface ValidationResponse {
@@ -40,6 +42,10 @@ function normalize(value: unknown): string {
 
 function normalizeAirport(value: unknown): string {
   return normalize(value).toUpperCase();
+}
+
+function isDigitsOnlyUpTo20(value: string): boolean {
+  return /^\d{1,20}$/.test(value);
 }
 
 function pickFirstString(candidates: unknown[]): string {
@@ -157,17 +163,31 @@ serve(async (req) => {
       input.discourse_name,
       input.ifcUsername,
     ]);
+    const ifcCommunityId = pickFirstString([input.ifcCommunityId, input.ifc_community_id]);
 
-    if (!depIcao || !arrIcao || !ifcIdentifier) {
+    if (!depIcao || !arrIcao || (!ifcIdentifier && !ifcCommunityId)) {
       return Response.json(
         {
           ...baseResponse,
-          reason: "Missing required fields: depIcao/dep_icao, arrIcao/arr_icao, ifcIdentifier (or discourseName/ifcUsername).",
+          reason: "Missing required fields: depIcao/dep_icao, arrIcao/arr_icao, and either ifcIdentifier (or discourseName/ifcUsername) or ifcCommunityId.",
           details: { receivedKeys: Object.keys(input ?? {}) },
         },
         { status: 200, headers: corsHeaders },
       );
     }
+
+    if (ifcCommunityId && !isDigitsOnlyUpTo20(ifcCommunityId)) {
+      return Response.json(
+        {
+          ...baseResponse,
+          reason: "Infinite Flight Community ID must contain digits only (up to 20 characters).",
+          details: { ifcCommunityId },
+        },
+        { status: 200, headers: corsHeaders },
+      );
+    }
+
+    const usersLookupValue = ifcIdentifier || ifcCommunityId;
 
     // Official IF flow:
     // POST /users { discourseNames: ["delta737"] } -> userId
@@ -179,7 +199,7 @@ serve(async (req) => {
       ({ response: usersRes, payload: usersPayload } = await fetchJsonWithTimeout(usersUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ discourseNames: [ifcIdentifier] }),
+        body: JSON.stringify({ discourseNames: [usersLookupValue] }),
       }));
     } catch (error) {
       const isTimeout = error instanceof DOMException && error.name === "AbortError";
@@ -197,7 +217,7 @@ serve(async (req) => {
         {
           ...baseResponse,
           reason: `Users lookup endpoint returned ${usersRes.status}.`,
-          details: { status: usersRes.status, ifcIdentifier },
+          details: { status: usersRes.status, usersLookupValue, ifcIdentifier, ifcCommunityId },
         },
         { status: 200, headers: corsHeaders },
       );
@@ -212,7 +232,7 @@ serve(async (req) => {
         {
           ...baseResponse,
           reason: "No user found for provided IFC username.",
-          details: { ifcIdentifier, usersFound: users.length },
+          details: { usersLookupValue, ifcIdentifier, ifcCommunityId, usersFound: users.length },
         },
         { status: 200, headers: corsHeaders },
       );
@@ -272,6 +292,8 @@ serve(async (req) => {
           pirepId,
           pilotId,
           ifcIdentifier,
+          ifcCommunityId,
+          usersLookupValue,
           resolvedUserId,
           checkedLogs: flights.length,
           maxRecentLogs: MAX_RECENT_LOGS,

@@ -265,6 +265,7 @@ Accepted aliases are also supported:
 - `depIcao` or `dep_icao`
 - `arrIcao` or `arr_icao`
 - `ifcIdentifier` or `ifc_identifier` or `discourseName` or `discourse_name` or `ifcUsername`
+- `ifcCommunityId` or `ifc_community_id` (digits only, max 20 chars)
 
 ### 4) What the function does internally
 

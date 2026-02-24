@@ -55,8 +55,11 @@ export default function RoutesPage() {
   const { data: aircraft } = useQuery({
     queryKey: ["aircraft"],
     queryFn: async () => {
-      const { data } = await supabase.from("aircraft").select("*").order("icao_code");
-      return data || [];
+      const { data } = await supabase.from("aircraft").select("icao_code").order("icao_code");
+      const uniqueCodes = Array.from(
+        new Set((data || []).map((ac) => ac.icao_code).filter(Boolean))
+      );
+      return uniqueCodes;
     },
   });
 
@@ -179,9 +182,9 @@ export default function RoutesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Aircraft</SelectItem>
-                  {aircraft?.map((ac) => (
-                    <SelectItem key={ac.icao_code} value={ac.icao_code}>
-                      {ac.icao_code}
+                  {aircraft?.map((icaoCode) => (
+                    <SelectItem key={icaoCode} value={icaoCode}>
+                      {icaoCode}
                     </SelectItem>
                   ))}
                 </SelectContent>

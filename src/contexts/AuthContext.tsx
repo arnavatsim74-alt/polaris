@@ -11,6 +11,8 @@ interface Pilot {
   avatar_url: string | null;
   discord_username?: string | null;
   discord_user_id?: string | null;
+  ifc_user_id?: string | null;
+  ifc_username?: string | null;
   total_hours: number;
   total_pireps: number;
   current_rank: string;
@@ -112,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           avatar_url: pilotData.avatar_url || getDiscordAvatarUrl(authUser || null),
           discord_username: pilotData.discord_username || discordUsernameFromOAuth,
           discord_user_id: pilotData.discord_user_id || discordUserIdFromOAuth,
+          ifc_user_id: pilotData.ifc_user_id || null,
+          ifc_username: pilotData.ifc_username || null,
           total_hours: Number(pilotData.total_hours) || 0,
           total_pireps: pilotData.total_pireps || 0,
           current_rank: pilotData.current_rank || "cadet",

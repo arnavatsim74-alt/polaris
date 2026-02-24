@@ -24,7 +24,7 @@ const applicationSchema = z.object({
   isIfatc: z.enum(["Yes", "No"]),
   ifcTrustLevel: z.enum(["Basic User (TL1)", "Member (TL2)", "Regular (TL3)", "Leader (TL4)", "I don't know"]),
   ageRange: z.enum(["13-16", "17-21", "22-27", "28-34", "35-41", "42-50", "51-60", "Above"]),
-  ifcProfileUrl: z.string().url("Please enter a valid IFC profile URL").or(z.literal("")),
+  ifcProfileUrl: z.string().min(2, "IFC username is required"),
   otherVaMembership: z.string().min(2, "Please answer if you are a member of another VA or VO"),
   whyJoinAflv: z.string().min(10, "Please share why you want to join AFLV"),
   hearAboutAflv: z.string().min(2, "Please share where you heard about AFLV"),
@@ -173,7 +173,7 @@ export default function ApplyPage() {
         is_ifatc: isIfatc,
         ifc_trust_level: ifcTrustLevel,
         age_range: ageRange,
-        ifc_profile_url: ifcProfileUrl || null,
+        ifc_profile_url: ifcProfileUrl.trim().replace(/^@+/, "") || null,
         other_va_membership: otherVaMembership,
         hear_about_aflv: hearAboutAflv,
       }, { onConflict: "user_id" });
@@ -364,13 +364,14 @@ export default function ApplyPage() {
                     </select>
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="ifcProfileUrl">Your IFC profile URL</Label>
+                    <Label htmlFor="ifcProfileUrl">Your IFC username *</Label>
                     <Input
                       id="ifcProfileUrl"
-                      placeholder="https://community.infiniteflight.com/u/your-profile"
+                      placeholder="username without @"
                       value={ifcProfileUrl}
                       onChange={(e) => setIfcProfileUrl(e.target.value)}
                       disabled={isLoading}
+                      required
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">

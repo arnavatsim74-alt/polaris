@@ -247,8 +247,6 @@ export default function AdminPireps() {
 
   const handleAction = async (pirep: any, action: "approve" | "deny" | "hold") => {
     if (action === "approve") {
-<<<<<<< codex/add-validation-fields-to-public.pireps
-=======
       setSelectedPirep(pirep);
       setActionType("approve");
       setValidationStatus("validating");
@@ -273,15 +271,9 @@ export default function AdminPireps() {
         });
       }
     } else {
->>>>>>> aflv
       setSelectedPirep(pirep);
-      setActionType("approve");
-      setReason("");
-      return;
+      setActionType(action);
     }
-
-    setSelectedPirep(pirep);
-    setActionType(action);
   };
 
   const submitAction = () => {
@@ -518,38 +510,6 @@ export default function AdminPireps() {
       {/* Action Dialog */}
       <Dialog open={!!actionType} onOpenChange={(open) => !open && clearActionDialogState()}>
         <DialogContent>
-<<<<<<< codex/add-validation-fields-to-public.pireps
-          <DialogHeader>
-            <DialogTitle>
-              {actionType === "deny" ? "Deny PIREP" : actionType === "hold" ? "Put PIREP On Hold" : "Approve PIREP"}
-            </DialogTitle>
-            <DialogDescription>
-              {actionType === "approve"
-                ? "Approving an unvalidated PIREP can include an optional override reason for traceability."
-                : "Please provide a reason for this action."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Textarea
-              placeholder={actionType === "approve" ? "Optional override reason..." : "Enter reason..."}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={4}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setActionType(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant={actionType === "deny" ? "destructive" : "default"}
-              onClick={submitAction}
-              disabled={updatePirepMutation.isPending}
-            >
-              {actionType === "deny" ? "Deny" : actionType === "hold" ? "Put On Hold" : "Approve"}
-            </Button>
-          </DialogFooter>
-=======
           {actionType === "approve" ? (
             <>
               <DialogHeader>
@@ -639,7 +599,6 @@ export default function AdminPireps() {
               </DialogFooter>
             </>
           )}
->>>>>>> aflv
         </DialogContent>
       </Dialog>
 

@@ -9,10 +9,31 @@ import { toast } from "sonner";
 import { normalizeDiscordUsername } from "@/lib/discordIdentity";
 import { UserCog } from "lucide-react";
 
+const IFC_USER_ID_REGEX = /^\d{1,20}$/;
+
+const parseIfcUserIdFromProfileUrl = (url: string | null | undefined) => {
+  if (!url) return null;
+
+  const directIdMatch = url.match(/\/u\/(\d+)/i);
+  if (directIdMatch?.[1]) return directIdMatch[1];
+
+  try {
+    const parsed = new URL(url);
+    const queryId = parsed.searchParams.get("id");
+    if (queryId && IFC_USER_ID_REGEX.test(queryId)) return queryId;
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
 export default function ProfileSettings() {
   const { user, pilot, refreshPilot } = useAuth();
   const [discordUsername, setDiscordUsername] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [ifcUserId, setIfcUserId] = useState("");
+  const [isSavingDiscord, setIsSavingDiscord] = useState(false);
+  const [isSavingIfc, setIsSavingIfc] = useState(false);
 
   const discordFromOAuth = useMemo(() => {
     const identity = user?.identities?.find((i) => i.provider === "discord");
@@ -38,6 +59,35 @@ export default function ProfileSettings() {
     }
   }, [pilot?.discord_username, discordFromOAuth]);
 
+  useEffect(() => {
+    if (pilot?.ifc_user_id) {
+      setIfcUserId(pilot.ifc_user_id);
+    }
+  }, [pilot?.ifc_user_id]);
+
+  useEffect(() => {
+    const prefillIfcFromLegacyApplication = async () => {
+      if (!user?.id || !pilot?.id || pilot.ifc_user_id) return;
+
+      const { data: application, error } = await supabase
+        .from("pilot_applications")
+        .select("ifc_profile_url")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !application?.ifc_profile_url) return;
+
+      const parsedLegacyIfcUserId = parseIfcUserIdFromProfileUrl(application.ifc_profile_url);
+      if (parsedLegacyIfcUserId) {
+        setIfcUserId(parsedLegacyIfcUserId);
+      }
+    };
+
+    void prefillIfcFromLegacyApplication();
+  }, [user?.id, pilot?.id, pilot?.ifc_user_id]);
+
   const saveDiscordUsername = async () => {
     if (!pilot?.id) return;
 
@@ -47,13 +97,13 @@ export default function ProfileSettings() {
       return;
     }
 
-    setIsSaving(true);
+    setIsSavingDiscord(true);
     const { error } = await supabase
       .from("pilots")
       .update({ discord_username: normalized })
       .eq("id", pilot.id);
 
-    setIsSaving(false);
+    setIsSavingDiscord(false);
 
     if (error) {
       toast.error(error.message.includes("pilots_discord_username_key")
@@ -64,6 +114,32 @@ export default function ProfileSettings() {
 
     await refreshPilot();
     toast.success("Discord username saved");
+  };
+
+  const saveIfcUserId = async () => {
+    if (!pilot?.id) return;
+
+    const normalizedIfcId = ifcUserId.trim();
+    if (normalizedIfcId && !IFC_USER_ID_REGEX.test(normalizedIfcId)) {
+      toast.error("Infinite Flight Community ID must contain digits only (up to 20 characters)");
+      return;
+    }
+
+    setIsSavingIfc(true);
+    const { error } = await supabase
+      .from("pilots")
+      .update({ ifc_user_id: normalizedIfcId || null })
+      .eq("id", pilot.id);
+
+    setIsSavingIfc(false);
+
+    if (error) {
+      toast.error(`Failed to save IFC ID: ${error.message}`);
+      return;
+    }
+
+    await refreshPilot();
+    toast.success("Infinite Flight Community ID saved");
   };
 
   return (
@@ -101,8 +177,35 @@ export default function ProfileSettings() {
             )}
           </div>
 
-          <Button onClick={saveDiscordUsername} disabled={isSaving || !pilot?.id}>
-            {isSaving ? "Saving..." : "Save Discord Username"}
+          <Button onClick={saveDiscordUsername} disabled={isSavingDiscord || !pilot?.id}>
+            {isSavingDiscord ? "Saving..." : "Save Discord Username"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Infinite Flight Community</CardTitle>
+          <CardDescription>
+            Store your IFC user ID for future integrations. This must be your numeric IFC account ID.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 max-w-lg">
+          <div className="space-y-2">
+            <Label htmlFor="ifc-user-id">Infinite Flight Community ID</Label>
+            <Input
+              id="ifc-user-id"
+              value={ifcUserId}
+              onChange={(e) => setIfcUserId(e.target.value)}
+              placeholder="e.g. 123456"
+            />
+            <p className="text-xs text-muted-foreground">
+              Numbers only. If left empty, the IFC ID will be cleared.
+            </p>
+          </div>
+
+          <Button onClick={saveIfcUserId} disabled={isSavingIfc || !pilot?.id}>
+            {isSavingIfc ? "Saving..." : "Save Infinite Flight Community ID"}
           </Button>
         </CardContent>
       </Card>

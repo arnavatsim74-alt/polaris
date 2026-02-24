@@ -1190,6 +1190,8 @@ export type Database = {
           discord_username: string | null
           full_name: string
           id: string
+          ifc_user_id: string | null
+          ifc_username: string | null
           ivao_id: string | null
           pid: string
           total_hours: number | null
@@ -1207,6 +1209,8 @@ export type Database = {
           discord_username?: string | null
           full_name: string
           id?: string
+          ifc_user_id?: string | null
+          ifc_username?: string | null
           ivao_id?: string | null
           pid: string
           total_hours?: number | null
@@ -1224,6 +1228,8 @@ export type Database = {
           discord_username?: string | null
           full_name?: string
           id?: string
+          ifc_user_id?: string | null
+          ifc_username?: string | null
           ivao_id?: string | null
           pid?: string
           total_hours?: number | null

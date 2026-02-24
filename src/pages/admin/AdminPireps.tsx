@@ -19,6 +19,15 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { sendNotification } from "@/lib/notifications";
 
+type ValidationStatus = "idle" | "validating" | "validated" | "not_validated" | "error";
+
+type ValidationMetadata = {
+  source?: string;
+  matchedLogId?: string;
+  confidence?: number;
+  message?: string;
+};
+
 export default function AdminPireps() {
   const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
@@ -29,6 +38,16 @@ export default function AdminPireps() {
   const [reason, setReason] = useState("");
   const [newOperator, setNewOperator] = useState("");
   const [deletingOperator, setDeletingOperator] = useState<string | null>(null);
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus>("idle");
+  const [validationMetadata, setValidationMetadata] = useState<ValidationMetadata | null>(null);
+
+  const clearActionDialogState = () => {
+    setSelectedPirep(null);
+    setActionType(null);
+    setReason("");
+    setValidationStatus("idle");
+    setValidationMetadata(null);
+  };
 
   const defaultOperators = [
     "Aeroflot", "Azerbaijan Airlines", "Uzbekistan Airways", "Belavia",
@@ -198,9 +217,7 @@ export default function AdminPireps() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-pireps"] });
       toast.success("PIREP updated successfully");
-      setSelectedPirep(null);
-      setActionType(null);
-      setReason("");
+      clearActionDialogState();
     },
     onError: (error) => {
       console.error(error);
@@ -208,8 +225,55 @@ export default function AdminPireps() {
     },
   });
 
-  const handleAction = (pirep: any, action: "approve" | "deny" | "hold") => {
+  const validatePirepMutation = useMutation({
+    mutationFn: async (pirep: any) => {
+      const { data, error } = await supabase.functions.invoke("validate-pirep", {
+        body: {
+          pirepId: pirep.id,
+          pilotId: pirep.pilot_id,
+          flightNumber: pirep.flight_number,
+          depIcao: pirep.dep_icao,
+          arrIcao: pirep.arr_icao,
+          aircraftIcao: pirep.aircraft_icao,
+          flightDate: pirep.flight_date,
+          flightHours: pirep.flight_hours,
+        },
+      });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleAction = async (pirep: any, action: "approve" | "deny" | "hold") => {
     if (action === "approve") {
+<<<<<<< codex/add-validation-fields-to-public.pireps
+=======
+      setSelectedPirep(pirep);
+      setActionType("approve");
+      setValidationStatus("validating");
+      setValidationMetadata(null);
+
+      try {
+        const data = await validatePirepMutation.mutateAsync(pirep);
+        const isValidated = Boolean(data?.validated ?? data?.is_validated ?? data?.isValid);
+
+        setValidationStatus(isValidated ? "validated" : "not_validated");
+        setValidationMetadata({
+          source: data?.source,
+          matchedLogId: data?.matched_log_id ?? data?.flight_log_id,
+          confidence: typeof data?.confidence === "number" ? data.confidence : undefined,
+          message: data?.message,
+        });
+      } catch (error) {
+        console.error(error);
+        setValidationStatus("error");
+        setValidationMetadata({
+          message: "Validation request failed. Please try again.",
+        });
+      }
+    } else {
+>>>>>>> aflv
       setSelectedPirep(pirep);
       setActionType("approve");
       setReason("");
@@ -451,9 +515,10 @@ export default function AdminPireps() {
         </CardContent>
       </Card>
 
-      {/* Deny/Hold Dialog */}
-      <Dialog open={!!actionType} onOpenChange={() => setActionType(null)}>
+      {/* Action Dialog */}
+      <Dialog open={!!actionType} onOpenChange={(open) => !open && clearActionDialogState()}>
         <DialogContent>
+<<<<<<< codex/add-validation-fields-to-public.pireps
           <DialogHeader>
             <DialogTitle>
               {actionType === "deny" ? "Deny PIREP" : actionType === "hold" ? "Put PIREP On Hold" : "Approve PIREP"}
@@ -484,6 +549,97 @@ export default function AdminPireps() {
               {actionType === "deny" ? "Deny" : actionType === "hold" ? "Put On Hold" : "Approve"}
             </Button>
           </DialogFooter>
+=======
+          {actionType === "approve" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Approve PIREP</DialogTitle>
+                <DialogDescription>
+                  Validate the flight log before final approval.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-1">
+                {validationStatus === "validating" && (
+                  <p className="text-sm text-muted-foreground">Validating flight log...</p>
+                )}
+
+                {validationStatus === "validated" && (
+                  <div className="space-y-2 rounded-md border border-success/30 bg-success/10 p-4 text-success">
+                    <div className="flex items-center gap-2 font-medium">
+                      <Check className="h-5 w-5 animate-pulse" />
+                      PIREP Validated. Would you like to approve?
+                    </div>
+                  </div>
+                )}
+
+                {validationStatus === "not_validated" && (
+                  <div className="space-y-2 rounded-md border border-warning/30 bg-warning/10 p-4 text-warning">
+                    <p className="font-medium">PIREP is not validated. Would you like to approve anyway?</p>
+                  </div>
+                )}
+
+                {validationStatus === "error" && (
+                  <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive">
+                    <p className="font-medium">Validation failed.</p>
+                    <p className="text-sm">{validationMetadata?.message}</p>
+                  </div>
+                )}
+
+                {validationMetadata && (validationMetadata.source || validationMetadata.matchedLogId || validationMetadata.confidence !== undefined) && (
+                  <div className="space-y-1 rounded-md border p-3 text-sm">
+                    {validationMetadata.source && <p><span className="font-medium">Source:</span> {validationMetadata.source}</p>}
+                    {validationMetadata.matchedLogId && <p><span className="font-medium">Matched log:</span> {validationMetadata.matchedLogId}</p>}
+                    {validationMetadata.confidence !== undefined && <p><span className="font-medium">Confidence:</span> {Math.round(validationMetadata.confidence * 100)}%</p>}
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={clearActionDialogState}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => selectedPirep && updatePirepMutation.mutate({ pirepId: selectedPirep.id, status: "approved" })}
+                  disabled={validationStatus === "validating" || validationStatus === "idle" || validationStatus === "error" || updatePirepMutation.isPending}
+                >
+                  Approve
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {actionType === "deny" ? "Deny PIREP" : "Put PIREP On Hold"}
+                </DialogTitle>
+                <DialogDescription>
+                  Please provide a reason for this action.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Textarea
+                  placeholder="Enter reason..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={4}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={clearActionDialogState}>
+                  Cancel
+                </Button>
+                <Button
+                  variant={actionType === "deny" ? "destructive" : "default"}
+                  onClick={submitAction}
+                  disabled={updatePirepMutation.isPending}
+                >
+                  {actionType === "deny" ? "Deny" : "Put On Hold"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+>>>>>>> aflv
         </DialogContent>
       </Dialog>
 

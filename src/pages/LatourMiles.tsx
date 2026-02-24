@@ -37,7 +37,7 @@ function generateCardNumber() {
   return segments.join(" ");
 }
 
-export default function AflvBonus() {
+export default function LatourMiles() {
   const { pilot } = useAuth();
   const queryClient = useQueryClient();
   const hours = pilot?.total_hours ?? 0;
@@ -95,7 +95,7 @@ export default function AflvBonus() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Latour Miles</h1>
-        <p className="text-muted-foreground">Latour Virtual Frequent Flyer Program</p>
+        <p className="text-muted-foreground">Earn and track your Latour Miles status rewards.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
@@ -103,7 +103,7 @@ export default function AflvBonus() {
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
-              Your Frequent Flyer Card
+              Your Latour Miles Card
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -140,7 +140,7 @@ export default function AflvBonus() {
                 <Clock className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Hours</p>
+                <p className="text-sm text-muted-foreground">Eligible Hours</p>
                 <p className="text-2xl font-bold">{hours.toFixed(1)}</p>
               </div>
             </CardContent>
@@ -151,7 +151,7 @@ export default function AflvBonus() {
                 <Plane className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Flights</p>
+                <p className="text-sm text-muted-foreground">Eligible Flights</p>
                 <p className="text-2xl font-bold">{pilot?.total_pireps ?? 0}</p>
               </div>
             </CardContent>
@@ -162,7 +162,7 @@ export default function AflvBonus() {
                 <Award className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Current Tier</p>
+                <p className="text-sm text-muted-foreground">Current Miles Tier</p>
                 <p className="text-2xl font-bold">{currentTier?.name ?? "Standard"}</p>
               </div>
             </CardContent>
@@ -187,7 +187,7 @@ export default function AflvBonus() {
       {/* All Tiers */}
       {tiers.length > 0 && (
         <div>
-          <h2 className="text-xl font-semibold mb-4">Tier Levels</h2>
+          <h2 className="text-xl font-semibold mb-4">Latour Miles Tiers</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {tiers.map((tier) => {
               const unlocked = hours >= tier.min_hours;

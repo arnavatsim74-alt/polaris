@@ -67,7 +67,7 @@ serve(async (req) => {
         { name: "Date", value: today, inline: true },
       ],
       timestamp: new Date().toISOString(),
-      footer: { text: "Aeroflot Virtual" },
+      footer: { text: "LATOUR Virtual" },
     };
 
     const discordRes = await fetch(webhookUrl, {

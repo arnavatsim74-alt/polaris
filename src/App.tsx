@@ -21,7 +21,7 @@ const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
 const Events = lazy(() => import("@/pages/Events"));
 const Details = lazy(() => import("@/pages/Details"));
 const Challenges = lazy(() => import("@/pages/Challenges"));
-const AflvBonusPage = lazy(() => import("@/pages/AflvBonus"));
+const LatourMilesPage = lazy(() => import("@/pages/LatourMiles"));
 const Tracker = lazy(() => import("@/pages/Tracker"));
 const AdminPireps = lazy(() => import("@/pages/admin/AdminPireps"));
 const AdminRoutes = lazy(() => import("@/pages/admin/AdminRoutes"));
@@ -73,45 +73,44 @@ const App = () => (
             <AuthProvider>
               <Suspense fallback={<AppLoader />}>
                 <Routes>
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/apply" element={<ApplyPage />} />
-              <Route path="/academy/exam/:examId" element={<AcademyExam />} />
-              <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                <Route index element={<Dashboard />} />
-                <Route path="rotw" element={<RoutesOfTheWeek />} />
-                <Route path="file-pirep" element={<FilePirep />} />
-                <Route path="pirep-history" element={<PirepHistory />} />
-                <Route path="routes" element={<RoutesPage />} />
-                <Route path="leaderboard" element={<Leaderboard />} />
-                <Route path="events" element={<Events />} />
-                <Route path="details" element={<Details />} />
-                <Route path="challenges" element={<Challenges />} />
-                <Route path="latourmiles" element={<AflvBonusPage />} />
-                <Route path="frequentflyer" element={<AflvBonusPage />} />
-                <Route path="tracker" element={<Tracker />} />
-                <Route path="academy" element={<Academy />} />
-                <Route path="academy/course/:courseId" element={<AcademyCourse />} />
-                <Route path="activity" element={<ActivityPage />} />
-                <Route path="profile" element={<ProfileSettings />} />
-                <Route path="admin/pireps" element={<AdminPireps />} />
-                <Route path="admin/routes" element={<AdminRoutes />} />
-                <Route path="admin/rotw" element={<AdminROTW />} />
-                <Route path="admin/events" element={<AdminEvents />} />
-                <Route path="admin/applications" element={<AdminApplications />} />
-                <Route path="admin/aircraft" element={<AdminAircraft />} />
-                <Route path="admin/ranks" element={<AdminRanks />} />
-                <Route path="admin/multipliers" element={<AdminMultipliers />} />
-                <Route path="admin/notams" element={<AdminNOTAMs />} />
-                <Route path="admin/settings" element={<AdminSettings />} />
-                <Route path="admin/members" element={<AdminMembers />} />
-                <Route path="admin/challenges" element={<AdminChallenges />} />
-                <Route path="admin/announcements" element={<AdminAnnouncements />} />
-                <Route path="admin/sidebar-links" element={<AdminSidebarLinks />} />
-                <Route path="admin/academy" element={<AdminAcademy />} />
-                <Route path="admin/bonus-tiers" element={<AdminBonusTiers />} />
-                <Route path="admin/activity" element={<AdminActivity />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/apply" element={<ApplyPage />} />
+                  <Route path="/academy/exam/:examId" element={<AcademyExam />} />
+                  <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                    <Route index element={<Dashboard />} />
+                    <Route path="rotw" element={<RoutesOfTheWeek />} />
+                    <Route path="file-pirep" element={<FilePirep />} />
+                    <Route path="pirep-history" element={<PirepHistory />} />
+                    <Route path="routes" element={<RoutesPage />} />
+                    <Route path="leaderboard" element={<Leaderboard />} />
+                    <Route path="events" element={<Events />} />
+                    <Route path="details" element={<Details />} />
+                    <Route path="challenges" element={<Challenges />} />
+                    <Route path="latourmiles" element={<LatourMilesPage />} />
+                    <Route path="tracker" element={<Tracker />} />
+                    <Route path="academy" element={<Academy />} />
+                    <Route path="academy/course/:courseId" element={<AcademyCourse />} />
+                    <Route path="activity" element={<ActivityPage />} />
+                    <Route path="profile" element={<ProfileSettings />} />
+                    <Route path="admin/pireps" element={<AdminPireps />} />
+                    <Route path="admin/routes" element={<AdminRoutes />} />
+                    <Route path="admin/rotw" element={<AdminROTW />} />
+                    <Route path="admin/events" element={<AdminEvents />} />
+                    <Route path="admin/applications" element={<AdminApplications />} />
+                    <Route path="admin/aircraft" element={<AdminAircraft />} />
+                    <Route path="admin/ranks" element={<AdminRanks />} />
+                    <Route path="admin/multipliers" element={<AdminMultipliers />} />
+                    <Route path="admin/notams" element={<AdminNOTAMs />} />
+                    <Route path="admin/settings" element={<AdminSettings />} />
+                    <Route path="admin/members" element={<AdminMembers />} />
+                    <Route path="admin/challenges" element={<AdminChallenges />} />
+                    <Route path="admin/announcements" element={<AdminAnnouncements />} />
+                    <Route path="admin/sidebar-links" element={<AdminSidebarLinks />} />
+                    <Route path="admin/academy" element={<AdminAcademy />} />
+                    <Route path="admin/bonus-tiers" element={<AdminBonusTiers />} />
+                    <Route path="admin/activity" element={<AdminActivity />} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
             </AuthProvider>

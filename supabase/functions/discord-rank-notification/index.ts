@@ -46,7 +46,7 @@ serve(async (req) => {
           { name: "Type", value: flight_type, inline: true },
         ],
         timestamp: new Date().toISOString(),
-        footer: { text: "Aeroflot Virtual" },
+        footer: { text: "LATOUR Virtual" },
       };
     } else if (type === "featured_route") {
       webhookUrl = Deno.env.get("DISCORD_WEBHOOK_FEATURED") || Deno.env.get("DISCORD_WEBHOOK_URL");
@@ -62,7 +62,7 @@ serve(async (req) => {
           { name: "Date", value: featured_date, inline: true },
         ],
         timestamp: new Date().toISOString(),
-        footer: { text: "Aeroflot Virtual" },
+        footer: { text: "LATOUR Virtual" },
       };
     } else if (type === "event_created" || type === "event_updated") {
       webhookUrl = Deno.env.get("DISCORD_WEBHOOK_EVENTS") || Deno.env.get("DISCORD_WEBHOOK_URL");
@@ -79,7 +79,7 @@ serve(async (req) => {
           ...(end_time ? [{ name: "End", value: new Date(end_time).toISOString(), inline: true }] : []),
         ],
         timestamp: new Date().toISOString(),
-        footer: { text: "Aeroflot Virtual" },
+        footer: { text: "LATOUR Virtual" },
       };
     } else if (type === "new_challenge") {
       webhookUrl = Deno.env.get("DISCORD_WEBHOOK_CHALLENGES") || Deno.env.get("DISCORD_WEBHOOK_URL");
@@ -94,7 +94,7 @@ serve(async (req) => {
         ],
         ...(image_url ? { image: { url: image_url } } : {}),
         timestamp: new Date().toISOString(),
-        footer: { text: "Aeroflot Virtual" },
+        footer: { text: "LATOUR Virtual" },
       };
     } else {
       // Default: rank promotion
@@ -111,7 +111,7 @@ serve(async (req) => {
           { name: "New Rank", value: formatRank(new_rank), inline: true },
         ],
         timestamp: new Date().toISOString(),
-        footer: { text: "Aeroflot Virtual" },
+        footer: { text: "LATOUR Virtual" },
       };
     }
 

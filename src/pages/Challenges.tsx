@@ -126,9 +126,6 @@ export default function Challenges() {
                   <h3 className="font-semibold">{challenge.name}</h3>
                   <div className="text-sm text-muted-foreground mt-1 space-y-1">
                     <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={renderSimpleMarkdown(challenge.description)} />
-                    {challenge.destination_icao && (
-                      <p>Destination: <span className="font-mono text-primary">{challenge.destination_icao}</span></p>
-                    )}
                   </div>
                   <Badge
                     variant={isCompleted ? "default" : "outline"}

@@ -621,7 +621,6 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
-          destination_icao: string | null
           id: string
           image_url: string | null
           is_active: boolean
@@ -630,7 +629,6 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
-          destination_icao?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -639,13 +637,54 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
-          destination_icao?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
           name?: string
         }
         Relationships: []
+      }
+      challenge_legs: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          id: string
+          leg_code: string | null
+          leg_order: number
+          route_id: string
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          id?: string
+          leg_code?: string | null
+          leg_order?: number
+          route_id: string
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          id?: string
+          leg_code?: string | null
+          leg_order?: number
+          route_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_legs_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_legs_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custom_sidebar_links: {
         Row: {

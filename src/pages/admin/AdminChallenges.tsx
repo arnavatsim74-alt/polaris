@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -12,25 +12,43 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Shield, Plus, Trash2, Edit, Target } from "lucide-react";
 import { toast } from "sonner";
+
+type ChallengeForm = { name: string; description: string; image_url: string };
 
 export default function AdminChallenges() {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", destination_icao: "", image_url: "" });
+  const [routeSearch, setRouteSearch] = useState("");
+  const [selectedRouteIds, setSelectedRouteIds] = useState<string[]>([]);
+  const [form, setForm] = useState<ChallengeForm>({ name: "", description: "", image_url: "" });
 
   const { data: challenges, isLoading } = useQuery({
     queryKey: ["admin-challenges"],
     queryFn: async () => {
-      const { data } = await supabase.from("challenges").select("*").order("created_at");
+      const { data } = await supabase
+        .from("challenges")
+        .select("*, challenge_legs(id, route_id, leg_order, route:routes(id, route_number, dep_icao, arr_icao, aircraft_icao, est_flight_time_minutes))")
+        .order("created_at");
       return data || [];
     },
   });
 
-
+  const { data: routes } = useQuery({
+    queryKey: ["admin-challenge-routes"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("routes")
+        .select("id, route_number, dep_icao, arr_icao, aircraft_icao, est_flight_time_minutes")
+        .eq("is_active", true)
+        .order("route_number");
+      return data || [];
+    },
+  });
 
   const { data: acceptances } = useQuery({
     queryKey: ["admin-challenge-acceptances"],
@@ -44,39 +62,49 @@ export default function AdminChallenges() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (data: typeof form & { id?: string }) => {
+    mutationFn: async (data: ChallengeForm & { id?: string; routeIds: string[] }) => {
       const payload = {
         name: data.name,
         description: data.description || null,
-        destination_icao: data.destination_icao || null,
         image_url: data.image_url || null,
       };
-      if (data.id) {
-        const { error } = await supabase.from("challenges").update(payload).eq("id", data.id);
+
+      let challengeId = data.id;
+      if (challengeId) {
+        const { error } = await supabase.from("challenges").update(payload).eq("id", challengeId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("challenges").insert(payload);
+        const { data: inserted, error } = await supabase.from("challenges").insert(payload).select("id").single();
         if (error) throw error;
+        challengeId = inserted.id;
 
-        // Send Discord notification for new challenge
-        try {
-          await supabase.functions.invoke("discord-rank-notification", {
-            body: {
-              type: "new_challenge",
-              name: data.name,
-              description: data.description || null,
-              destination_icao: data.destination_icao || null,
-              image_url: data.image_url || null,
-            },
-          });
-        } catch (e) {
-          console.error("Discord challenge notification failed:", e);
-        }
+        await supabase.functions.invoke("discord-rank-notification", {
+          body: {
+            type: "new_challenge",
+            name: data.name,
+            description: data.description || null,
+            image_url: data.image_url || null,
+          },
+        });
+      }
+
+      const { error: clearError } = await supabase.from("challenge_legs").delete().eq("challenge_id", challengeId);
+      if (clearError) throw clearError;
+
+      if (data.routeIds.length > 0) {
+        const legs = data.routeIds.map((routeId, index) => ({
+          challenge_id: challengeId,
+          route_id: routeId,
+          leg_order: index + 1,
+          leg_code: `${data.name || "LEG"}${index + 1}`,
+        }));
+        const { error: legsError } = await supabase.from("challenge_legs").insert(legs);
+        if (legsError) throw legsError;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-challenges"] });
-      toast.success(editingId ? "Challenge updated" : "Challenge created & sent to Discord");
+      toast.success(editingId ? "Challenge updated" : "Challenge created");
       closeDialog();
     },
     onError: () => toast.error("Failed to save challenge"),
@@ -94,8 +122,6 @@ export default function AdminChallenges() {
     onError: () => toast.error("Failed to delete challenge"),
   });
 
-
-
   const updateAcceptanceStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "incomplete" | "complete" }) => {
       const { error } = await supabase
@@ -112,14 +138,29 @@ export default function AdminChallenges() {
     onError: () => toast.error("Failed to update status"),
   });
 
-
-  const closeDialog = () => { setIsDialogOpen(false); setEditingId(null); setForm({ name: "", description: "", destination_icao: "", image_url: "" }); };
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+    setEditingId(null);
+    setSelectedRouteIds([]);
+    setRouteSearch("");
+    setForm({ name: "", description: "", image_url: "" });
+  };
 
   const openEdit = (ch: any) => {
     setEditingId(ch.id);
-    setForm({ name: ch.name, description: ch.description || "", destination_icao: ch.destination_icao || "", image_url: ch.image_url || "" });
+    setForm({ name: ch.name, description: ch.description || "", image_url: ch.image_url || "" });
+    const orderedLegs = [...(ch.challenge_legs || [])].sort((a: any, b: any) => a.leg_order - b.leg_order);
+    setSelectedRouteIds(orderedLegs.map((l: any) => l.route_id));
     setIsDialogOpen(true);
   };
+
+  const filteredRoutes = useMemo(() => {
+    const q = routeSearch.trim().toLowerCase();
+    if (!q) return routes || [];
+    return (routes || []).filter((r: any) =>
+      [r.route_number, r.dep_icao, r.arr_icao, r.aircraft_icao].some((v) => String(v || "").toLowerCase().includes(q)),
+    );
+  }, [routes, routeSearch]);
 
   if (!isAdmin) return <Navigate to="/" replace />;
 
@@ -137,35 +178,52 @@ export default function AdminChallenges() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditingId(null); setForm({ name: "", description: "", destination_icao: "", image_url: "" }); setIsDialogOpen(true); }}>
+            <Button onClick={() => { setEditingId(null); setSelectedRouteIds([]); setForm({ name: "", description: "", image_url: "" }); setIsDialogOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />Add Challenge
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>{editingId ? "Edit Challenge" : "Create Challenge"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Name</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="WT1" />
+                <Label>Embed Title / Challenge Name</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="World Tour 1" />
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="File a PIREP with the destination of KJFK" />
+                <Label>Embed Description</Label>
+                <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Challenge details" />
               </div>
               <div className="space-y-2">
-                <Label>Destination ICAO (optional)</Label>
-                <Input value={form.destination_icao} onChange={(e) => setForm({ ...form, destination_icao: e.target.value.toUpperCase() })} placeholder="KJFK" maxLength={4} />
-              </div>
-              <div className="space-y-2">
-                <Label>Image URL (optional)</Label>
+                <Label>Embed Image URL (optional)</Label>
                 <Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Add Routes (Legs)</Label>
+                <Input value={routeSearch} onChange={(e) => setRouteSearch(e.target.value)} placeholder="Search by route, ICAO, aircraft" />
+                <div className="max-h-56 overflow-auto rounded border p-2 space-y-2">
+                  {filteredRoutes.map((r: any) => {
+                    const checked = selectedRouteIds.includes(r.id);
+                    const duration = `${Math.floor((r.est_flight_time_minutes || 0) / 60)}:${String((r.est_flight_time_minutes || 0) % 60).padStart(2, "0")}`;
+                    return (
+                      <label key={r.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(value) => setSelectedRouteIds((prev) => value ? [...prev, r.id] : prev.filter((id) => id !== r.id))}
+                        />
+                        <span>| {r.route_number} | {r.dep_icao}-{r.arr_icao} | {r.aircraft_icao || "N/A"} | {duration} |</span>
+                      </label>
+                    );
+                  })}
+                  {filteredRoutes.length === 0 && <p className="text-sm text-muted-foreground">No routes found.</p>}
+                </div>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-              <Button onClick={() => saveMutation.mutate({ ...form, id: editingId || undefined })} disabled={saveMutation.isPending}>
+              <Button onClick={() => saveMutation.mutate({ ...form, id: editingId || undefined, routeIds: selectedRouteIds })} disabled={saveMutation.isPending || !form.name.trim()}>
                 {editingId ? "Update" : "Create"}
               </Button>
             </DialogFooter>
@@ -188,16 +246,18 @@ export default function AdminChallenges() {
                   <tr className="border-b">
                     <th className="text-left py-3 px-2 font-medium">Name</th>
                     <th className="text-left py-3 px-2 font-medium">Description</th>
-                    <th className="text-left py-3 px-2 font-medium">Destination</th>
+                    <th className="text-left py-3 px-2 font-medium">Legs</th>
                     <th className="text-right py-3 px-2 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {challenges.map((ch) => (
+                  {challenges.map((ch: any) => (
                     <tr key={ch.id} className="border-b last:border-0 hover:bg-muted/50">
                       <td className="py-3 px-2 font-medium">{ch.name}</td>
                       <td className="py-3 px-2 text-muted-foreground max-w-[300px] truncate">{ch.description || "-"}</td>
-                      <td className="py-3 px-2 font-mono">{ch.destination_icao || "-"}</td>
+                      <td className="py-3 px-2">
+                        <Badge variant="secondary">{(ch.challenge_legs || []).length} legs</Badge>
+                      </td>
                       <td className="py-3 px-2 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(ch)}>
@@ -247,13 +307,9 @@ export default function AdminChallenges() {
                       </td>
                       <td className="py-3 px-2 text-right">
                         {a.status === "incomplete" ? (
-                          <Button size="sm" onClick={() => updateAcceptanceStatusMutation.mutate({ id: a.id, status: "complete" })}>
-                            Mark Complete
-                          </Button>
+                          <Button size="sm" onClick={() => updateAcceptanceStatusMutation.mutate({ id: a.id, status: "complete" })}>Mark Complete</Button>
                         ) : (
-                          <Button size="sm" variant="outline" onClick={() => updateAcceptanceStatusMutation.mutate({ id: a.id, status: "incomplete" })}>
-                            Mark Incomplete
-                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => updateAcceptanceStatusMutation.mutate({ id: a.id, status: "incomplete" })}>Mark Incomplete</Button>
                         )}
                       </td>
                     </tr>
@@ -266,7 +322,6 @@ export default function AdminChallenges() {
           )}
         </CardContent>
       </Card>
-
     </div>
   );
 }

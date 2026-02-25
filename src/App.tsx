@@ -1,13 +1,14 @@
-import { Suspense, lazy } from "react";
+import { ReactNode, Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layouts/AppLayout";
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 
 const AuthPage = lazy(() => import("@/pages/Auth"));
 const ApplyPage = lazy(() => import("@/pages/Apply"));
@@ -55,16 +56,25 @@ const queryClient = new QueryClient({
   },
 });
 
+const RouteScopedErrorBoundary = ({ children }: { children: ReactNode }) => {
+  const location = useLocation();
+  const resetKey = `${location.pathname}${location.search}`;
+
+  return <AppErrorBoundary resetKey={resetKey}>{children}</AppErrorBoundary>;
+};
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="dark" storageKey="aeroflot-va-theme">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Suspense fallback={null}>
-              <Routes>
+  <AppErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="dark" storageKey="aeroflot-va-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <RouteScopedErrorBoundary>
+                <Suspense fallback={null}>
+                  <Routes>
                     <Route path="/auth" element={<AuthPage />} />
                     <Route path="/apply" element={<ApplyPage />} />
                     <Route path="/academy/exam/:examId" element={<AcademyExam />} />
@@ -104,13 +114,15 @@ const App = () => (
                       <Route path="admin/activity" element={<AdminActivity />} />
                     </Route>
                     <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+                  </Routes>
+                </Suspense>
+              </RouteScopedErrorBoundary>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </AppErrorBoundary>
 );
 
 export default App;

@@ -185,6 +185,7 @@ export default function AdminRoutes() {
   };
 
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -199,6 +200,7 @@ export default function AdminRoutes() {
       const arrIcaoIdx = findColumnIndex(headers, ["arrivalicao", "arricao", "arrival", "arr"]);
       const aircraftIdx = findColumnIndex(headers, ["aircraft", "aircrafticao", "plane"]);
       const routeTypeIdx = findColumnIndex(headers, ["routetype", "type", "flighttype"]);
+      const liveryIdx = findColumnIndex(headers, ["livery", "airline", "operatorlivery"]);
       const rankIdx = findColumnIndex(headers, ["rank", "minrank", "minimumrank"]);
       const estFlightTimeIdx = findColumnIndex(headers, ["estflighttime", "flighttime", "time", "duration"]);
       const notesIdx = findColumnIndex(headers, ["notes", "note", "comments"]);
@@ -210,6 +212,7 @@ export default function AdminRoutes() {
         arrIcaoIdx,
         aircraftIdx,
         routeTypeIdx,
+        liveryIdx,
         rankIdx,
         estFlightTimeIdx,
         notesIdx,
@@ -225,6 +228,7 @@ export default function AdminRoutes() {
         const arrIcao = arrIcaoIdx >= 0 ? values[arrIcaoIdx] : "";
         const aircraftRaw = aircraftIdx >= 0 ? values[aircraftIdx] : "";
         const routeType = routeTypeIdx >= 0 ? values[routeTypeIdx]?.toLowerCase() || "passenger" : "passenger";
+        const liveryRaw = liveryIdx >= 0 ? values[liveryIdx] : "";
         const rank = rankIdx >= 0 ? values[rankIdx] : "";
         const estFlightTimeRaw = estFlightTimeIdx >= 0 ? values[estFlightTimeIdx] : "0";
         const notes = notesIdx >= 0 ? values[notesIdx] : "";
@@ -239,18 +243,20 @@ export default function AdminRoutes() {
         }
 
         if (routeNumber && depIcao && arrIcao) {
-          // Split aircraft by comma to handle multiple aircraft per route
           const aircraftList = aircraftRaw
             ? aircraftRaw.split(",").map((a) => a.trim()).filter(Boolean)
             : [""];
+          const liveryList = liveryRaw
+            ? liveryRaw.split(",").map((l) => l.trim())
+            : [];
 
-          // Create a route entry for each aircraft (duplicate rows)
-          for (const aircraft of aircraftList) {
+          for (const [index, aircraft] of aircraftList.entries()) {
             routesToParse.push({
               route_number: routeNumber,
               dep_icao: depIcao,
               arr_icao: arrIcao,
               aircraft_icao: aircraft || undefined,
+              livery: liveryList[index] || liveryList[0] || undefined,
               route_type: routeType,
               est_flight_time_minutes: estFlightTimeMinutes,
               min_rank: rank || undefined,
@@ -378,7 +384,7 @@ export default function AdminRoutes() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Shield className="h-5 w-5" />
@@ -388,7 +394,7 @@ export default function AdminRoutes() {
             <p className="text-muted-foreground">Add, edit, and import routes</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -396,16 +402,16 @@ export default function AdminRoutes() {
             onChange={handleCSVUpload}
             className="hidden"
           />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
           </Button>
-          <Button variant="outline" onClick={exportCSV}>
+          <Button type="button" variant="outline" onClick={exportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
           <ConfirmDialog
-            trigger={<Button variant="destructive" disabled={selectedRouteIds.length === 0}>
+            trigger={<Button type="button" variant="destructive" disabled={selectedRouteIds.length === 0}>
               <Trash2 className="h-4 w-4 mr-2" /> Bulk Delete ({selectedRouteIds.length})
             </Button>}
             title="Delete selected routes?"
@@ -414,7 +420,7 @@ export default function AdminRoutes() {
           />
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button type="button">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Route
               </Button>
@@ -530,10 +536,11 @@ export default function AdminRoutes() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button
+                  type="button"
                   onClick={() => addRouteMutation.mutate(newRoute)}
                   disabled={addRouteMutation.isPending}
                 >

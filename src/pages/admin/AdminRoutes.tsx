@@ -185,6 +185,7 @@ export default function AdminRoutes() {
   };
 
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -383,7 +384,7 @@ export default function AdminRoutes() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Shield className="h-5 w-5" />
@@ -393,7 +394,7 @@ export default function AdminRoutes() {
             <p className="text-muted-foreground">Add, edit, and import routes</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -401,16 +402,16 @@ export default function AdminRoutes() {
             onChange={handleCSVUpload}
             className="hidden"
           />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
           </Button>
-          <Button variant="outline" onClick={exportCSV}>
+          <Button type="button" variant="outline" onClick={exportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
           <ConfirmDialog
-            trigger={<Button variant="destructive" disabled={selectedRouteIds.length === 0}>
+            trigger={<Button type="button" variant="destructive" disabled={selectedRouteIds.length === 0}>
               <Trash2 className="h-4 w-4 mr-2" /> Bulk Delete ({selectedRouteIds.length})
             </Button>}
             title="Delete selected routes?"
@@ -419,7 +420,7 @@ export default function AdminRoutes() {
           />
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button type="button">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Route
               </Button>
@@ -535,10 +536,11 @@ export default function AdminRoutes() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button
+                  type="button"
                   onClick={() => addRouteMutation.mutate(newRoute)}
                   disabled={addRouteMutation.isPending}
                 >

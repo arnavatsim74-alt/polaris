@@ -1,6 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -43,11 +42,12 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }, [location.pathname, location.search, pilot, user]);
 
   const redirectTarget = useMemo(() => {
-    if (isLoading || isPilotLoading || isCheckingRecruitmentAccess) return null;
+    if (isLoading || isCheckingRecruitmentAccess) return null;
 
     if (!user) return "/auth";
 
     if (!pilot) {
+      if (isPilotLoading) return null;
       if (location.pathname.startsWith("/academy/exam/") && hasRecruitmentExamAccess) {
         return null;
       }
@@ -75,16 +75,9 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     });
   }, [isAdmin, isCheckingRecruitmentAccess, isLoading, isPilotLoading, location.pathname, pilot, redirectTarget, requireAdmin, user]);
 
-  if (isLoading || isPilotLoading || isCheckingRecruitmentAccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading || isCheckingRecruitmentAccess) return null;
+
+  if (!pilot && isPilotLoading) return null;
 
   if (redirectTarget === "/auth") {
     return <Navigate to="/auth" state={{ from: location }} replace />;

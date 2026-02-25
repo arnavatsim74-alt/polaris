@@ -175,6 +175,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
 
+        if (event === "SIGNED_OUT" || !session?.user) {
+          setPilot(null);
+          setIsAdmin(false);
+          setIsPilotLoading(false);
+          return;
+        }
+
+        if (event === "TOKEN_REFRESHED") {
+          return;
+        }
+
         if (session?.user) {
           setIsPilotLoading(true);
           setTimeout(async () => {
@@ -182,10 +193,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // After fetching, try admin setup if needed
             await tryAdminSetup(session);
           }, 0);
-        } else {
-          setPilot(null);
-          setIsAdmin(false);
-          setIsPilotLoading(false);
         }
       }
     );

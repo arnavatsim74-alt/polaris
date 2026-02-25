@@ -31,7 +31,7 @@ type ValidationMetadata = {
 export default function AdminPireps() {
   const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPirep, setSelectedPirep] = useState<any>(null);
   const [actionType, setActionType] = useState<"approve" | "deny" | "hold" | null>(null);
@@ -315,17 +315,14 @@ export default function AdminPireps() {
 
       if (currentValidationStatus === "validating") return;
 
-      if (currentValidationStatus === "error") {
-        toast.error("Validation failed. Please try again before approving.");
-        return;
-      }
-
       const isValidated = currentValidationStatus === "validated";
       updatePirepMutation.mutate({
         pirepId: selectedPirep.id,
         status: "approved",
         isValidated,
-        overrideReason: isValidated ? undefined : (validationMetadata?.message || "Approved without validated auto-check"),
+        overrideReason: isValidated
+          ? undefined
+          : (validationMetadata?.message || "Approved without validated auto-check"),
       });
       return;
     }
@@ -604,7 +601,7 @@ export default function AdminPireps() {
                 </Button>
                 <Button
                   onClick={() => void submitAction()}
-                  disabled={validationStatus === "validating" || validationStatus === "idle" || validationStatus === "error" || updatePirepMutation.isPending}
+                  disabled={validationStatus === "validating" || validationStatus === "idle" || updatePirepMutation.isPending}
                 >
                   Approve
                 </Button>

@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { RouteImportMapping } from "@/components/admin/RouteImportMapping";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getAircraftLiveryPairs, splitRouteAircraft, splitRouteValues } from "@/lib/routeAircraft";
 
 interface ParsedRoute {
   route_number: string;
@@ -243,12 +244,8 @@ export default function AdminRoutes() {
         }
 
         if (routeNumber && depIcao && arrIcao) {
-          const aircraftList = aircraftRaw
-            ? aircraftRaw.split(",").map((a) => a.trim()).filter(Boolean)
-            : [];
-          const liveryList = liveryRaw
-            ? liveryRaw.split(",").map((l) => l.trim()).filter(Boolean)
-            : [];
+          const aircraftList = splitRouteAircraft(aircraftRaw);
+          const liveryList = splitRouteValues(liveryRaw);
 
           routesToParse.push({
             route_number: routeNumber,
@@ -598,8 +595,32 @@ export default function AdminRoutes() {
                       <td className="py-3 px-2 font-medium">{route.route_number}</td>
                       <td className="py-3 px-2 font-mono">{route.dep_icao}</td>
                       <td className="py-3 px-2 font-mono">{route.arr_icao}</td>
-                      <td className="py-3 px-2">{route.aircraft_icao}</td>
-                      <td className="py-3 px-2 text-muted-foreground">{route.livery || "-"}</td>
+                      <td className="py-3 px-2">
+                        <div className="flex flex-col gap-1">
+                          {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
+                            getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
+                              <span key={`${route.id}-ac-${pair.icao}-${index}`} className="text-xs">
+                                {pair.icao}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-2 text-muted-foreground">
+                        <div className="flex flex-col gap-1">
+                          {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
+                            getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
+                              <span key={`${route.id}-liv-${pair.icao}-${index}`} className="text-xs">
+                                {pair.livery || "-"}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs">-</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 px-2">
                         <Badge variant="secondary" className="capitalize">
                           {route.route_type}

@@ -245,24 +245,22 @@ export default function AdminRoutes() {
         if (routeNumber && depIcao && arrIcao) {
           const aircraftList = aircraftRaw
             ? aircraftRaw.split(",").map((a) => a.trim()).filter(Boolean)
-            : [""];
+            : [];
           const liveryList = liveryRaw
-            ? liveryRaw.split(",").map((l) => l.trim())
+            ? liveryRaw.split(",").map((l) => l.trim()).filter(Boolean)
             : [];
 
-          for (const [index, aircraft] of aircraftList.entries()) {
-            routesToParse.push({
-              route_number: routeNumber,
-              dep_icao: depIcao,
-              arr_icao: arrIcao,
-              aircraft_icao: aircraft || undefined,
-              livery: liveryList[index] || liveryList[0] || undefined,
-              route_type: routeType,
-              est_flight_time_minutes: estFlightTimeMinutes,
-              min_rank: rank || undefined,
-              notes: notes || undefined,
-            });
-          }
+          routesToParse.push({
+            route_number: routeNumber,
+            dep_icao: depIcao,
+            arr_icao: arrIcao,
+            aircraft_icao: aircraftList.length > 0 ? aircraftList.join(", ") : undefined,
+            livery: liveryList.length > 0 ? liveryList.join(", ") : undefined,
+            route_type: routeType,
+            est_flight_time_minutes: estFlightTimeMinutes,
+            min_rank: rank || undefined,
+            notes: notes || undefined,
+          });
         }
       }
 

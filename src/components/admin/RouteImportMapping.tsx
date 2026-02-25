@@ -45,8 +45,16 @@ const normalizeRank = (rank: string): string | null => {
 };
 
 export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: RouteImportMappingProps) {
-  // Extract unique aircraft strings from CSV (like "Saudia A320")
-  const uniqueAircraftStrings = [...new Set(parsedRoutes.map(r => r.aircraft_icao).filter(Boolean))] as string[];
+  const splitAircraftValues = (value?: string) => {
+    if (!value) return [] as string[];
+    return value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  };
+
+  // Extract unique aircraft strings from CSV, supporting comma-separated values per route
+  const uniqueAircraftStrings = [...new Set(parsedRoutes.flatMap((r) => splitAircraftValues(r.aircraft_icao)))];
   
   // Extract unique rank strings that couldn't be auto-mapped
   const uniqueRanks = [...new Set(
@@ -112,8 +120,11 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
 
   const handleFinalizeImport = () => {
     const mappedRoutes = parsedRoutes.map(route => {
-      // Get mapped aircraft and livery
-      const aircraftMapping = route.aircraft_icao ? aircraftMappings[route.aircraft_icao] : null;
+      const rawAircraftValues = splitAircraftValues(route.aircraft_icao);
+      const mappedAircraftValues = rawAircraftValues.map((value) => aircraftMappings[value]?.icao || value);
+      const mappedLiveryValues = rawAircraftValues
+        .map((value) => aircraftMappings[value]?.livery || "")
+        .filter(Boolean);
       
       // Get rank - try auto-mapping first, then user mapping
       let finalRank = "cadet";
@@ -124,8 +135,8 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
 
       return {
         ...route,
-        aircraft_icao: aircraftMapping?.icao || route.aircraft_icao,
-        livery: aircraftMapping?.livery || route.livery || undefined,
+        aircraft_icao: mappedAircraftValues.length > 0 ? mappedAircraftValues.join(", ") : route.aircraft_icao,
+        livery: mappedLiveryValues.length > 0 ? mappedLiveryValues.join(", ") : route.livery || undefined,
         min_rank: finalRank,
       };
     });

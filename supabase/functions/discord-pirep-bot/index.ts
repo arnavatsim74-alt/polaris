@@ -354,12 +354,63 @@ const handleLeaderboard = async () => {
   return embedResponse({ title: "🏆 Top 5 Pilot Leaderboard", description: lines, color: COLORS.BLUE });
 };
 
+const toDuration = (minutes: number | null | undefined) => {
+  const total = Number(minutes || 0);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+};
+
+const buildSimbriefUrl = (route: any) => {
+  const flightNumber = String(route?.route_number || "AFLV").replace(/[^A-Z0-9]/gi, "").toUpperCase() || "AFLV";
+  const params = new URLSearchParams({
+    orig: String(route?.dep_icao || "").toUpperCase(),
+    dest: String(route?.arr_icao || "").toUpperCase(),
+    type: String(route?.aircraft_icao || "").toUpperCase(),
+    callsign: flightNumber,
+    airline: "AFLV",
+    fltnum: flightNumber,
+  });
+  return `https://www.simbrief.com/system/dispatch.php?${params.toString()}`;
+};
+
 const handleChallengeList = async () => {
-  const { data: challenges } = await supabase.from("challenges").select("id,name,description,destination_icao,image_url").eq("is_active", true).order("created_at", { ascending: false }).limit(5);
-  if (!challenges?.length) return embedResponse({ title: "Challenges", description: "No active challenges right now.", color: COLORS.BLUE });
-  const embeds     = challenges.map((c: any) => ({ title: `🎯 ${c.name}`, description: c.description || "Community challenge", color: COLORS.BLUE, fields: c.destination_icao ? [{ name: "Destination", value: c.destination_icao, inline: true }] : [], image: c.image_url ? { url: c.image_url } : undefined }));
-  const components = challenges.map((c: any) => actionRow(btn(1, `challenge_accept:${c.id}`, "Participate")));
-  return Response.json({ type: 4, data: { embeds, components } });
+  const { data: challenges } = await supabase
+    .from("challenges")
+    .select("id,name,description,image_url,challenge_legs(leg_order,route:routes(id,route_number,dep_icao,arr_icao,aircraft_icao,est_flight_time_minutes))")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  if (!challenges?.length) return Response.json({ type: 4, data: { embeds: [{ title: "Challenges", description: "No active challenges right now.", color: COLORS.BLUE }], flags: 64 } });
+
+  const embeds = challenges.map((c: any) => {
+    const legs = [...(c.challenge_legs || [])]
+      .sort((a: any, b: any) => a.leg_order - b.leg_order)
+      .map((l: any, i: number) => {
+        const route = Array.isArray(l.route) ? l.route[0] : l.route;
+        return `| WT${i + 1} | ${route?.dep_icao || "----"}-${route?.arr_icao || "----"} | ${route?.aircraft_icao || "N/A"} | ${toDuration(route?.est_flight_time_minutes)} |`;
+      })
+      .join("\n");
+
+    return {
+      title: `🎯 ${c.name}`,
+      description: `${c.description || "Community challenge"}${legs ? `\n\n${legs}` : ""}`,
+      color: COLORS.BLUE,
+      image: c.image_url ? { url: c.image_url } : undefined,
+    };
+  });
+
+  const dispatchEmbeds = challenges.map((c: any) => ({
+    title: `${c.name} Dispatch`,
+    description: "Mission SimBrief® Dispatch Panel\n\nTap a button below to manage your World Tour planning.\n• **SimBrief:** Generate a SimBrief link for your selected Route and aircraft.",
+    color: COLORS.BLUE,
+    footer: { text: `SimBrief Dispatcher | ${c.name}` },
+  }));
+
+  const components = challenges.flatMap((c: any) => [
+    actionRow(btn(1, `challenge_accept:${c.id}`, "Participate"), btn(1, `challenge_dispatch:${c.id}`, "Dispatch")),
+  ]);
+
+  return Response.json({ type: 4, data: { embeds: [...embeds, ...dispatchEmbeds], components, flags: 64 } });
 };
 
 const notamColor = (priority: string | null | undefined) => {
@@ -422,6 +473,95 @@ const handleAcceptChallengeButton = async (body: any, challengeId: string) => {
     if (error) return ephemeralReply(`⚠️ Challenge action failed: ${error.message}`);
   }
   return ephemeralReply("✅ Challenge accepted.");
+};
+
+const handleDispatchButton = async (challengeId: string) => {
+  const { data: legs } = await supabase
+    .from("challenge_legs")
+    .select("leg_order,route:routes(id,route_number,dep_icao,arr_icao,aircraft_icao,est_flight_time_minutes)")
+    .eq("challenge_id", challengeId)
+    .order("leg_order", { ascending: true })
+    .limit(25);
+
+  if (!legs?.length) return ephemeralReply("No legs configured for this challenge yet.");
+
+  const options = legs.map((l: any, i: number) => {
+    const route = Array.isArray(l.route) ? l.route[0] : l.route;
+    return {
+      label: `WT${i + 1} ${route?.dep_icao || "----"}-${route?.arr_icao || "----"}`.slice(0, 100),
+      description: `${route?.aircraft_icao || "N/A"} • ${toDuration(route?.est_flight_time_minutes)}`.slice(0, 100),
+      value: String(route?.id || ""),
+    };
+  }).filter((o: any) => !!o.value);
+
+  return Response.json({
+    type: 4,
+    data: {
+      embeds: [{ title: "Select Leg", description: "Choose which leg to dispatch.", color: COLORS.BLUE }],
+      components: [{
+        type: 1,
+        components: [{
+          type: 3,
+          custom_id: `challenge_dispatch_select:${challengeId}`,
+          placeholder: "Select leg",
+          min_values: 1,
+          max_values: 1,
+          options,
+        }],
+      }],
+      flags: 64,
+    },
+  });
+};
+
+const handleDispatchLegSelection = async (challengeId: string, routeId: string) => {
+  const { data: route } = await supabase.from("routes").select("id,route_number,dep_icao,arr_icao,aircraft_icao").eq("id", routeId).maybeSingle();
+  if (!route?.id) return ephemeralReply("Selected leg not found.");
+
+  const { data: aircraftChoices } = await supabase
+    .from("routes")
+    .select("id,aircraft_icao,livery")
+    .eq("route_number", route.route_number)
+    .eq("dep_icao", route.dep_icao)
+    .eq("arr_icao", route.arr_icao)
+    .not("aircraft_icao", "is", null)
+    .limit(25);
+
+  const distinct = [...new Set((aircraftChoices || []).map((a: any) => String(a.aircraft_icao || "")).filter(Boolean))];
+  if (distinct.length > 1) {
+    return Response.json({
+      type: 4,
+      data: {
+        embeds: [{ title: "Select Aircraft", description: `Multiple aircraft found for ${route.dep_icao}-${route.arr_icao}.`, color: COLORS.BLUE }],
+        components: [{
+          type: 1,
+          components: [{
+            type: 3,
+            custom_id: `challenge_aircraft_select:${challengeId}`,
+            placeholder: "Select aircraft",
+            min_values: 1,
+            max_values: 1,
+            options: (aircraftChoices || []).map((a: any) => ({
+              label: String(a.aircraft_icao || "N/A").slice(0, 100),
+              description: String(a.livery || "No livery").slice(0, 100),
+              value: String(a.id),
+            })),
+          }],
+        }],
+        flags: 64,
+      },
+    });
+  }
+
+  const link = buildSimbriefUrl(route);
+  return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
+};
+
+const handleAircraftSelection = async (routeId: string) => {
+  const { data: route } = await supabase.from("routes").select("dep_icao,arr_icao,aircraft_icao,route_number").eq("id", routeId).maybeSingle();
+  if (!route) return ephemeralReply("Aircraft selection failed.");
+  const link = buildSimbriefUrl(route);
+  return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
 };
 
 // ─── Recruitment – Discord API helpers ────────────────────────────────────────
@@ -985,9 +1125,13 @@ serve(async (req) => {
     // Button interactions (type 3)
     if (body.type === 3) {
       const customId = String(body.data?.custom_id || "");
+      const values = Array.isArray(body.data?.values) ? body.data.values : [];
       try {
         if (customId.startsWith("event_join:"))                              return handleJoinEventButton(body, customId.slice("event_join:".length));
         if (customId.startsWith("challenge_accept:"))                        return handleAcceptChallengeButton(body, customId.slice("challenge_accept:".length));
+        if (customId.startsWith("challenge_dispatch:"))                      return handleDispatchButton(customId.slice("challenge_dispatch:".length));
+        if (customId.startsWith("challenge_dispatch_select:"))               return handleDispatchLegSelection(customId.slice("challenge_dispatch_select:".length), String(values[0] || ""));
+        if (customId.startsWith("challenge_aircraft_select:"))               return handleAircraftSelection(String(values[0] || ""));
         if (customId === RECRUITMENT_BUTTON_CUSTOM_ID)                       return handleRecruitmentButton(body);
         if (customId.startsWith(RECRUITMENT_CALLSIGN_BUTTON_PREFIX))         return handleOpenCallsignModal(body, customId.slice(RECRUITMENT_CALLSIGN_BUTTON_PREFIX.length));
         if (customId.startsWith(RECRUITMENT_PRACTICAL_CONFIRM_PREFIX))       return handleRecruitmentPracticalConfirm(customId.slice(RECRUITMENT_PRACTICAL_CONFIRM_PREFIX.length));
@@ -1017,7 +1161,7 @@ serve(async (req) => {
       if (name === "pirep")       return handlePirep(body);
       if (name === "get-events")  return handleGetEvents();
       if (name === "leaderboard") return handleLeaderboard();
-      if (name === "challange")   return handleChallengeList();
+      if (name === "challange" || name === "challenges")   return handleChallengeList();
       if (name === "notams")      return handleNotams();
       if (name === "rotw")        return handleRotw();
       if (name === "featured")    return handleFeatured();

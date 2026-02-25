@@ -83,14 +83,13 @@ serve(async (req) => {
       };
     } else if (type === "new_challenge") {
       webhookUrl = Deno.env.get("DISCORD_WEBHOOK_CHALLENGES") || Deno.env.get("DISCORD_WEBHOOK_URL");
-      const { name, description, destination_icao, image_url } = body;
+      const { name, description, image_url } = body;
       embed = {
         title: "🎯 New Challenge Available!",
         description: `A new challenge has been added: **${name}**`,
         color: 0xe67e22,
         fields: [
           ...(description ? [{ name: "Description", value: description, inline: false }] : []),
-          ...(destination_icao ? [{ name: "Destination", value: destination_icao, inline: true }] : []),
         ],
         ...(image_url ? { image: { url: image_url } } : {}),
         timestamp: new Date().toISOString(),

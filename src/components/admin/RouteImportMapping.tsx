@@ -125,7 +125,7 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
       return {
         ...route,
         aircraft_icao: aircraftMapping?.icao || route.aircraft_icao,
-        livery: aircraftMapping?.livery || undefined,
+        livery: aircraftMapping?.livery || route.livery || undefined,
         min_rank: finalRank,
       };
     });

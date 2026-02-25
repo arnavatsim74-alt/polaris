@@ -199,6 +199,7 @@ export default function AdminRoutes() {
       const arrIcaoIdx = findColumnIndex(headers, ["arrivalicao", "arricao", "arrival", "arr"]);
       const aircraftIdx = findColumnIndex(headers, ["aircraft", "aircrafticao", "plane"]);
       const routeTypeIdx = findColumnIndex(headers, ["routetype", "type", "flighttype"]);
+      const liveryIdx = findColumnIndex(headers, ["livery", "airline", "operatorlivery"]);
       const rankIdx = findColumnIndex(headers, ["rank", "minrank", "minimumrank"]);
       const estFlightTimeIdx = findColumnIndex(headers, ["estflighttime", "flighttime", "time", "duration"]);
       const notesIdx = findColumnIndex(headers, ["notes", "note", "comments"]);
@@ -210,6 +211,7 @@ export default function AdminRoutes() {
         arrIcaoIdx,
         aircraftIdx,
         routeTypeIdx,
+        liveryIdx,
         rankIdx,
         estFlightTimeIdx,
         notesIdx,
@@ -225,6 +227,7 @@ export default function AdminRoutes() {
         const arrIcao = arrIcaoIdx >= 0 ? values[arrIcaoIdx] : "";
         const aircraftRaw = aircraftIdx >= 0 ? values[aircraftIdx] : "";
         const routeType = routeTypeIdx >= 0 ? values[routeTypeIdx]?.toLowerCase() || "passenger" : "passenger";
+        const liveryRaw = liveryIdx >= 0 ? values[liveryIdx] : "";
         const rank = rankIdx >= 0 ? values[rankIdx] : "";
         const estFlightTimeRaw = estFlightTimeIdx >= 0 ? values[estFlightTimeIdx] : "0";
         const notes = notesIdx >= 0 ? values[notesIdx] : "";
@@ -239,18 +242,20 @@ export default function AdminRoutes() {
         }
 
         if (routeNumber && depIcao && arrIcao) {
-          // Split aircraft by comma to handle multiple aircraft per route
           const aircraftList = aircraftRaw
             ? aircraftRaw.split(",").map((a) => a.trim()).filter(Boolean)
             : [""];
+          const liveryList = liveryRaw
+            ? liveryRaw.split(",").map((l) => l.trim())
+            : [];
 
-          // Create a route entry for each aircraft (duplicate rows)
-          for (const aircraft of aircraftList) {
+          for (const [index, aircraft] of aircraftList.entries()) {
             routesToParse.push({
               route_number: routeNumber,
               dep_icao: depIcao,
               arr_icao: arrIcao,
               aircraft_icao: aircraft || undefined,
+              livery: liveryList[index] || liveryList[0] || undefined,
               route_type: routeType,
               est_flight_time_minutes: estFlightTimeMinutes,
               min_rank: rank || undefined,

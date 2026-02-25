@@ -42,11 +42,12 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }, [location.pathname, location.search, pilot, user]);
 
   const redirectTarget = useMemo(() => {
-    if (isLoading || isPilotLoading || isCheckingRecruitmentAccess) return null;
+    if (isLoading || isCheckingRecruitmentAccess) return null;
 
     if (!user) return "/auth";
 
     if (!pilot) {
+      if (isPilotLoading) return null;
       if (location.pathname.startsWith("/academy/exam/") && hasRecruitmentExamAccess) {
         return null;
       }

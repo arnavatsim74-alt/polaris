@@ -299,19 +299,40 @@ export default function AdminRoutes() {
         notes: route.notes || null,
       }));
 
+      const isMissingLiveryColumnError = (error: unknown) => {
+        const err = error as { code?: string; message?: string } | null;
+        return err?.code === "PGRST204" && String(err?.message || "").includes("livery");
+      };
+
+      const stripLiveryField = (batch: typeof routesToInsert) =>
+        batch.map(({ livery: _livery, ...rest }) => rest);
+
       // Batch insert in chunks of 25 to avoid payload/timeout issues on large imports
       const BATCH_SIZE = 25;
       let imported = 0;
       let failedBatches = 0;
+      let warnedAboutMissingLiveryColumn = false;
       for (let i = 0; i < routesToInsert.length; i += BATCH_SIZE) {
         const batch = routesToInsert.slice(i, i + BATCH_SIZE);
         try {
-          const { error } = await supabase.from("routes").insert(batch);
+          let { error } = await supabase.from("routes").insert(batch);
+
+          if (error && isMissingLiveryColumnError(error)) {
+            if (!warnedAboutMissingLiveryColumn) {
+              toast.warning("Routes livery column is missing in this database. Importing without livery values.");
+              warnedAboutMissingLiveryColumn = true;
+            }
+
+            const retry = await supabase.from("routes").insert(stripLiveryField(batch));
+            error = retry.error;
+          }
+
           if (error) {
             console.error(`Batch ${i / BATCH_SIZE + 1} failed:`, error);
             failedBatches++;
             continue;
           }
+
           imported += batch.length;
         } catch (batchError) {
           console.error(`Batch ${i / BATCH_SIZE + 1} error:`, batchError);

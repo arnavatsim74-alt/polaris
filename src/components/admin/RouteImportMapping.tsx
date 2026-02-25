@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Plane, Award } from "lucide-react";
+import { splitRouteAircraft } from "@/lib/routeAircraft";
 
 interface ParsedRoute {
   route_number: string;
@@ -45,16 +46,8 @@ const normalizeRank = (rank: string): string | null => {
 };
 
 export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: RouteImportMappingProps) {
-  const splitAircraftValues = (value?: string) => {
-    if (!value) return [] as string[];
-    return value
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-  };
-
-  // Extract unique aircraft strings from CSV, supporting comma-separated values per route
-  const uniqueAircraftStrings = [...new Set(parsedRoutes.flatMap((r) => splitAircraftValues(r.aircraft_icao)))];
+  // Extract unique aircraft strings from CSV, supporting multi-aircraft values per route
+  const uniqueAircraftStrings = [...new Set(parsedRoutes.flatMap((r) => splitRouteAircraft(r.aircraft_icao)))];
   
   // Extract unique rank strings that couldn't be auto-mapped
   const uniqueRanks = [...new Set(
@@ -120,7 +113,7 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
 
   const handleFinalizeImport = () => {
     const mappedRoutes = parsedRoutes.map(route => {
-      const rawAircraftValues = splitAircraftValues(route.aircraft_icao);
+      const rawAircraftValues = splitRouteAircraft(route.aircraft_icao);
       const mappedAircraftValues = rawAircraftValues.map((value) => aircraftMappings[value]?.icao || value);
       const mappedLiveryValues = rawAircraftValues
         .map((value) => aircraftMappings[value]?.livery || "")

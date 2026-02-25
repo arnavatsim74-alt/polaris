@@ -56,12 +56,6 @@ const queryClient = new QueryClient({
   },
 });
 
-const AppLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
-    Loading...
-  </div>
-);
-
 const RouteScopedErrorBoundary = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const resetKey = `${location.pathname}${location.search}`;
@@ -79,7 +73,7 @@ const App = () => (
           <BrowserRouter>
             <AuthProvider>
               <RouteScopedErrorBoundary>
-                <Suspense fallback={<AppLoader />}>
+                <Suspense fallback={null}>
                   <Routes>
                     <Route path="/auth" element={<AuthPage />} />
                     <Route path="/apply" element={<ApplyPage />} />

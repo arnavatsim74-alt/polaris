@@ -1,9 +1,9 @@
-import { Suspense, lazy } from "react";
+import { ReactNode, Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -62,6 +62,13 @@ const AppLoader = () => (
   </div>
 );
 
+const RouteScopedErrorBoundary = ({ children }: { children: ReactNode }) => {
+  const location = useLocation();
+  const resetKey = `${location.pathname}${location.search}`;
+
+  return <AppErrorBoundary resetKey={resetKey}>{children}</AppErrorBoundary>;
+};
+
 const App = () => (
   <AppErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -71,49 +78,51 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
-              <Suspense fallback={<AppLoader />}>
-                <Routes>
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/apply" element={<ApplyPage />} />
-              <Route path="/academy/exam/:examId" element={<AcademyExam />} />
-              <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                <Route index element={<Dashboard />} />
-                <Route path="rotw" element={<RoutesOfTheWeek />} />
-                <Route path="file-pirep" element={<FilePirep />} />
-                <Route path="pirep-history" element={<PirepHistory />} />
-                <Route path="routes" element={<RoutesPage />} />
-                <Route path="leaderboard" element={<Leaderboard />} />
-                <Route path="events" element={<Events />} />
-                <Route path="details" element={<Details />} />
-                <Route path="challenges" element={<Challenges />} />
-                <Route path="aflvbonus" element={<AflvBonusPage />} />
-                <Route path="frequentflyer" element={<AflvBonusPage />} />
-                <Route path="tracker" element={<Tracker />} />
-                <Route path="academy" element={<Academy />} />
-                <Route path="academy/course/:courseId" element={<AcademyCourse />} />
-                <Route path="activity" element={<ActivityPage />} />
-                <Route path="profile" element={<ProfileSettings />} />
-                <Route path="admin/pireps" element={<AdminPireps />} />
-                <Route path="admin/routes" element={<AdminRoutes />} />
-                <Route path="admin/rotw" element={<AdminROTW />} />
-                <Route path="admin/events" element={<AdminEvents />} />
-                <Route path="admin/applications" element={<AdminApplications />} />
-                <Route path="admin/aircraft" element={<AdminAircraft />} />
-                <Route path="admin/ranks" element={<AdminRanks />} />
-                <Route path="admin/multipliers" element={<AdminMultipliers />} />
-                <Route path="admin/notams" element={<AdminNOTAMs />} />
-                <Route path="admin/settings" element={<AdminSettings />} />
-                <Route path="admin/members" element={<AdminMembers />} />
-                <Route path="admin/challenges" element={<AdminChallenges />} />
-                <Route path="admin/announcements" element={<AdminAnnouncements />} />
-                <Route path="admin/sidebar-links" element={<AdminSidebarLinks />} />
-                <Route path="admin/academy" element={<AdminAcademy />} />
-                <Route path="admin/bonus-tiers" element={<AdminBonusTiers />} />
-                <Route path="admin/activity" element={<AdminActivity />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
+              <RouteScopedErrorBoundary>
+                <Suspense fallback={<AppLoader />}>
+                  <Routes>
+                    <Route path="/auth" element={<AuthPage />} />
+                    <Route path="/apply" element={<ApplyPage />} />
+                    <Route path="/academy/exam/:examId" element={<AcademyExam />} />
+                    <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                      <Route index element={<Dashboard />} />
+                      <Route path="rotw" element={<RoutesOfTheWeek />} />
+                      <Route path="file-pirep" element={<FilePirep />} />
+                      <Route path="pirep-history" element={<PirepHistory />} />
+                      <Route path="routes" element={<RoutesPage />} />
+                      <Route path="leaderboard" element={<Leaderboard />} />
+                      <Route path="events" element={<Events />} />
+                      <Route path="details" element={<Details />} />
+                      <Route path="challenges" element={<Challenges />} />
+                      <Route path="aflvbonus" element={<AflvBonusPage />} />
+                      <Route path="frequentflyer" element={<AflvBonusPage />} />
+                      <Route path="tracker" element={<Tracker />} />
+                      <Route path="academy" element={<Academy />} />
+                      <Route path="academy/course/:courseId" element={<AcademyCourse />} />
+                      <Route path="activity" element={<ActivityPage />} />
+                      <Route path="profile" element={<ProfileSettings />} />
+                      <Route path="admin/pireps" element={<AdminPireps />} />
+                      <Route path="admin/routes" element={<AdminRoutes />} />
+                      <Route path="admin/rotw" element={<AdminROTW />} />
+                      <Route path="admin/events" element={<AdminEvents />} />
+                      <Route path="admin/applications" element={<AdminApplications />} />
+                      <Route path="admin/aircraft" element={<AdminAircraft />} />
+                      <Route path="admin/ranks" element={<AdminRanks />} />
+                      <Route path="admin/multipliers" element={<AdminMultipliers />} />
+                      <Route path="admin/notams" element={<AdminNOTAMs />} />
+                      <Route path="admin/settings" element={<AdminSettings />} />
+                      <Route path="admin/members" element={<AdminMembers />} />
+                      <Route path="admin/challenges" element={<AdminChallenges />} />
+                      <Route path="admin/announcements" element={<AdminAnnouncements />} />
+                      <Route path="admin/sidebar-links" element={<AdminSidebarLinks />} />
+                      <Route path="admin/academy" element={<AdminAcademy />} />
+                      <Route path="admin/bonus-tiers" element={<AdminBonusTiers />} />
+                      <Route path="admin/activity" element={<AdminActivity />} />
+                    </Route>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </RouteScopedErrorBoundary>
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>

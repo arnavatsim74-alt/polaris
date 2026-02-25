@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 
 interface AppErrorBoundaryProps {
   children: ReactNode;
+  resetKey?: string;
 }
 
 interface AppErrorBoundaryState {
@@ -22,6 +23,16 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     console.error("Unhandled app error:", error, info);
   }
 
+  componentDidUpdate(prevProps: AppErrorBoundaryProps) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  private handleTryAgain = () => {
+    this.setState({ hasError: false });
+  };
+
   private handleReload = () => {
     window.location.reload();
   };
@@ -35,7 +46,10 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
             <p className="text-muted-foreground">
               The page crashed unexpectedly. Please reload and try again.
             </p>
-            <Button onClick={this.handleReload}>Reload app</Button>
+            <div className="flex justify-center gap-2">
+              <Button onClick={this.handleTryAgain} variant="secondary">Try again</Button>
+              <Button onClick={this.handleReload}>Reload app</Button>
+            </div>
           </div>
         </div>
       );

@@ -380,7 +380,7 @@ const handleChallengeList = async () => {
     .order("created_at", { ascending: false })
     .limit(5);
 
-  if (!challenges?.length) return Response.json({ type: 4, data: { embeds: [{ title: "Challenges", description: "No active challenges right now.", color: COLORS.BLUE }] } });
+  if (!challenges?.length) return Response.json({ type: 4, data: { embeds: [{ title: "Challenges", description: "No active challenges right now.", color: COLORS.BLUE }], flags: 64 } });
 
   const embeds = challenges.map((c: any) => {
     const legs = [...(c.challenge_legs || [])]
@@ -410,7 +410,7 @@ const handleChallengeList = async () => {
     actionRow(btn(1, `challenge_accept:${c.id}`, "Participate"), btn(1, `challenge_dispatch:${c.id}`, "Dispatch")),
   ]);
 
-  return Response.json({ type: 4, data: { embeds: [...embeds, ...dispatchEmbeds], components } });
+  return Response.json({ type: 4, data: { embeds: [...embeds, ...dispatchEmbeds], components, flags: 64 } });
 };
 
 const notamColor = (priority: string | null | undefined) => {

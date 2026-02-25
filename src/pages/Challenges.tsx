@@ -135,7 +135,7 @@ export default function Challenges() {
                   </Badge>
                   {!isAccepted && (
                     <Button className="mt-2 w-full" size="sm" onClick={() => acceptChallengeMutation.mutate(challenge.id)} disabled={acceptChallengeMutation.isPending}>
-                      Challenge Accepted
+                      Accept Challenge
                     </Button>
                   )}
                 </CardContent>

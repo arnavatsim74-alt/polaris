@@ -344,12 +344,6 @@ export default function AdminPireps() {
     return matchesSearch;
   });
 
-  useEffect(() => {
-    if (!isLoading && statusFilter === "pending" && (pireps?.length || 0) === 0) {
-      setStatusFilter("all");
-      toast.info("No pending PIREPs found. Showing all statuses.");
-    }
-  }, [isLoading, pireps, statusFilter]);
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;

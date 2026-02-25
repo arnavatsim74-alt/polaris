@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { PENDING_APPROVAL_MESSAGE } from "@/lib/authMessages";
@@ -40,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPilotLoading, setIsPilotLoading] = useState(false);
+
+  const lastLoadedUserIdRef = useRef<string | null>(null);
 
   const getDiscordIdentity = (authUser: User | null) => {
     const { discordUsername, discordUserId } = getDiscordProfile(authUser);
@@ -194,6 +196,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await tryAdminSetup(session);
           }, 0);
         }
+
+        if (event === "SIGNED_IN" && lastLoadedUserIdRef.current === session.user.id) {
+          return;
+        }
+
+        setIsPilotLoading(true);
+        setTimeout(async () => {
+          await fetchPilotData(session.user.id, session.user);
+          lastLoadedUserIdRef.current = session.user.id;
+          // After fetching, try admin setup if needed
+          await tryAdminSetup(session);
+        }, 0);
       }
     );
 
@@ -203,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         setIsPilotLoading(true);
         await fetchPilotData(session.user.id, session.user);
+        lastLoadedUserIdRef.current = session.user.id;
         await tryAdminSetup(session);
       } else {
         setPilot(null);

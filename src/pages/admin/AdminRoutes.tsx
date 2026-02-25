@@ -185,6 +185,12 @@ export default function AdminRoutes() {
     return -1;
   };
 
+
+  const normalizeRouteType = (value?: string) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (["cargo", "freighter", "cargo flight", "freight"].includes(normalized)) return "cargo" as const;
+    return "passenger" as const;
+  };
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     const file = e.target.files?.[0];
@@ -228,7 +234,7 @@ export default function AdminRoutes() {
         const depIcao = depIcaoIdx >= 0 ? values[depIcaoIdx] : "";
         const arrIcao = arrIcaoIdx >= 0 ? values[arrIcaoIdx] : "";
         const aircraftRaw = aircraftIdx >= 0 ? values[aircraftIdx] : "";
-        const routeType = routeTypeIdx >= 0 ? values[routeTypeIdx]?.toLowerCase() || "passenger" : "passenger";
+        const routeType = normalizeRouteType(routeTypeIdx >= 0 ? values[routeTypeIdx] : "passenger");
         const liveryRaw = liveryIdx >= 0 ? values[liveryIdx] : "";
         const rank = rankIdx >= 0 ? values[rankIdx] : "";
         const estFlightTimeRaw = estFlightTimeIdx >= 0 ? values[estFlightTimeIdx] : "0";
@@ -287,7 +293,7 @@ export default function AdminRoutes() {
         arr_icao: route.arr_icao,
         aircraft_icao: route.aircraft_icao || null,
         livery: route.livery || null,
-        route_type: (route.route_type || "passenger") as "passenger" | "cargo",
+        route_type: normalizeRouteType(route.route_type),
         est_flight_time_minutes: route.est_flight_time_minutes || 0,
         min_rank: route.min_rank || "cadet",
         notes: route.notes || null,

@@ -21,6 +21,13 @@ const rankLabels: Record<string, string> = {
   commander: "Commander",
 };
 
+/**
+ * Render the Route Database page with filters, a recommended-for-you section, and a paginated list of available routes.
+ *
+ * Renders controls to filter by departure, arrival, aircraft, and route type; computes personalized recommendations from the pilot's recent approved PIREPs and rank; displays routes with aircraft + livery pairs, estimated flight time, minimum rank, and notes; and provides an action to file a PIREP that navigates to the filing page with route query parameters (dep, arr, aircraft, flight, type). Actions that require a higher rank are shown as locked.
+ *
+ * @returns The Routes page as a JSX element.
+ */
 export default function RoutesPage() {
   const { pilot } = useAuth();
   const navigate = useNavigate();

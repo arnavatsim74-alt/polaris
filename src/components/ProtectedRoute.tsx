@@ -8,6 +8,14 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
 }
 
+/**
+ * Guards route access and redirects users based on authentication state, pilot status, recruitment-exam token, and admin requirement.
+ *
+ * Checks whether the current user may view the wrapped children; when access is not allowed it renders a navigation redirect to either the authentication page or the home page.
+ *
+ * @param requireAdmin - If true, only allow access for users with admin privileges
+ * @returns The wrapped children when access is permitted; otherwise a `<Navigate>` element that redirects to the appropriate route ("/auth" or "/")
+ */
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
   const { user, pilot, isAdmin, isLoading, isPilotLoading } = useAuth();
   const location = useLocation();

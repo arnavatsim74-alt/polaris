@@ -33,6 +33,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Provides authentication state and actions to descendant components via AuthContext.
+ *
+ * The provider manages Supabase session and user state, loads and caches pilot records,
+ * exposes admin status and loading flags, and supplies authentication actions
+ * (signIn, signUp, signInWithDiscord, signOut, refreshPilot).
+ *
+ * @param children - React children that will receive the AuthContext value
+ * @returns The AuthContext provider element wrapping `children`
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);

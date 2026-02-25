@@ -28,6 +28,13 @@ type ValidationMetadata = {
   message?: string;
 };
 
+/**
+ * Admin interface for viewing, filtering, validating, and managing PIREPs and available operators.
+ *
+ * Renders a UI that lets administrators search and filter PIREPs, run an automated validation check, and approve, deny, or place PIREPs on hold (with optional reason). Also provides persistence-backed operator management (add/remove) and sends pilot notifications when PIREP status changes. Non-admin users are redirected to the root.
+ *
+ * @returns A React element that renders the PIREP administration UI.
+ */
 export default function AdminPireps() {
   const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();

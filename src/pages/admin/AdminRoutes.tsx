@@ -30,6 +30,14 @@ interface ParsedRoute {
   notes?: string;
 }
 
+/**
+ * Admin interface for viewing, importing, exporting, creating, and deleting flight routes.
+ *
+ * Provides a routes table with selection and bulk actions, CSV import/export and mapping flow,
+ * single-route add/delete dialogs, and controls for route metadata (aircraft, livery, type, time, rank, notes).
+ *
+ * @returns The rendered React element for the admin routes management UI.
+ */
 export default function AdminRoutes() {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();

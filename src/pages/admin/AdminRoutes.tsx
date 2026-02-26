@@ -602,7 +602,6 @@ export default function AdminRoutes() {
                     <th className="text-left py-3 px-2 font-medium">Dep</th>
                     <th className="text-left py-3 px-2 font-medium">Arr</th>
                     <th className="text-left py-3 px-2 font-medium">Aircraft</th>
-                    <th className="text-left py-3 px-2 font-medium">Livery</th>
                     <th className="text-left py-3 px-2 font-medium">Type</th>
                     <th className="text-left py-3 px-2 font-medium">Time</th>
                     <th className="text-left py-3 px-2 font-medium">Min Rank</th>
@@ -627,24 +626,11 @@ export default function AdminRoutes() {
                           {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
                             getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
                               <span key={`${route.id}-ac-${pair.icao}-${index}`} className="text-xs">
-                                {pair.icao}
+                                {pair.icao}{pair.livery ? ` - ${pair.livery}` : ""}
                               </span>
                             ))
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-2 text-muted-foreground">
-                        <div className="flex flex-col gap-1">
-                          {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
-                            getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
-                              <span key={`${route.id}-liv-${pair.icao}-${index}`} className="text-xs">
-                                {pair.livery || "-"}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs">-</span>
                           )}
                         </div>
                       </td>

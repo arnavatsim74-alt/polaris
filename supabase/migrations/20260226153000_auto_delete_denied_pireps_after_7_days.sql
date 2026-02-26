@@ -23,7 +23,7 @@ BEGIN
     PERFORM cron.schedule(
       'cleanup-denied-pireps-daily',
       '0 3 * * *',
-      'SELECT public.cleanup_old_denied_pireps();'
+      $$SELECT public.cleanup_old_denied_pireps();$$
     );
   END IF;
 END;

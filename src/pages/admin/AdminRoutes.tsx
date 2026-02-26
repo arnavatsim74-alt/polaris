@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { RouteImportMapping } from "@/components/admin/RouteImportMapping";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getAircraftLiveryPairs, splitRouteAircraft, splitRouteValues } from "@/lib/routeAircraft";
 
 interface ParsedRoute {
   route_number: string;
@@ -127,8 +128,8 @@ export default function AdminRoutes() {
     onError: () => toast.error("Failed to bulk delete routes"),
   });
 
-  // Parse CSV line respecting quoted fields
-  const parseCSVLine = (line: string): string[] => {
+  // Parse delimited line respecting quoted fields
+  const parseCSVLine = (line: string, delimiter: string): string[] => {
     const result: string[] = [];
     let current = "";
     let inQuotes = false;
@@ -137,7 +138,7 @@ export default function AdminRoutes() {
       const char = line[i];
       if (char === '"') {
         inQuotes = !inQuotes;
-      } else if (char === "," && !inQuotes) {
+      } else if (char === delimiter && !inQuotes) {
         result.push(current.trim());
         current = "";
       } else {
@@ -146,6 +147,12 @@ export default function AdminRoutes() {
     }
     result.push(current.trim());
     return result;
+  };
+
+  const detectDelimiter = (headerLine: string) => {
+    if (headerLine.includes("\t")) return "\t";
+    if (headerLine.includes(";")) return ";";
+    return ",";
   };
 
   // Normalize header name for flexible matching
@@ -184,6 +191,12 @@ export default function AdminRoutes() {
     return -1;
   };
 
+
+  const normalizeRouteType = (value?: string) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (["cargo", "freighter", "cargo flight", "freight"].includes(normalized)) return "cargo" as const;
+    return "passenger" as const;
+  };
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     const file = e.target.files?.[0];
@@ -191,8 +204,14 @@ export default function AdminRoutes() {
 
     try {
       const text = await file.text();
-      const lines = text.split("\n").filter((line) => line.trim());
-      const headers = parseCSVLine(lines[0]);
+      const lines = text.split(/\r?\n/).filter((line) => line.trim());
+      if (lines.length === 0) {
+        toast.error("CSV file is empty");
+        return;
+      }
+
+      const delimiter = detectDelimiter(lines[0]);
+      const headers = parseCSVLine(lines[0], delimiter);
 
       // Find column indices using flexible matching
       const routeNumberIdx = findColumnIndex(headers, ["routenumber", "route"]);
@@ -221,13 +240,13 @@ export default function AdminRoutes() {
       const routesToParse: ParsedRoute[] = [];
 
       for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
+        const values = parseCSVLine(lines[i], delimiter);
 
         const routeNumber = routeNumberIdx >= 0 ? values[routeNumberIdx] : "";
         const depIcao = depIcaoIdx >= 0 ? values[depIcaoIdx] : "";
         const arrIcao = arrIcaoIdx >= 0 ? values[arrIcaoIdx] : "";
         const aircraftRaw = aircraftIdx >= 0 ? values[aircraftIdx] : "";
-        const routeType = routeTypeIdx >= 0 ? values[routeTypeIdx]?.toLowerCase() || "passenger" : "passenger";
+        const routeType = normalizeRouteType(routeTypeIdx >= 0 ? values[routeTypeIdx] : "passenger");
         const liveryRaw = liveryIdx >= 0 ? values[liveryIdx] : "";
         const rank = rankIdx >= 0 ? values[rankIdx] : "";
         const estFlightTimeRaw = estFlightTimeIdx >= 0 ? values[estFlightTimeIdx] : "0";
@@ -243,12 +262,8 @@ export default function AdminRoutes() {
         }
 
         if (routeNumber && depIcao && arrIcao) {
-          const aircraftList = aircraftRaw
-            ? aircraftRaw.split(",").map((a) => a.trim()).filter(Boolean)
-            : [];
-          const liveryList = liveryRaw
-            ? liveryRaw.split(",").map((l) => l.trim()).filter(Boolean)
-            : [];
+          const aircraftList = splitRouteAircraft(aircraftRaw);
+          const liveryList = splitRouteValues(liveryRaw);
 
           routesToParse.push({
             route_number: routeNumber,
@@ -290,25 +305,46 @@ export default function AdminRoutes() {
         arr_icao: route.arr_icao,
         aircraft_icao: route.aircraft_icao || null,
         livery: route.livery || null,
-        route_type: (route.route_type || "passenger") as "passenger" | "cargo",
+        route_type: normalizeRouteType(route.route_type),
         est_flight_time_minutes: route.est_flight_time_minutes || 0,
         min_rank: route.min_rank || "cadet",
         notes: route.notes || null,
       }));
 
+      const isMissingLiveryColumnError = (error: unknown) => {
+        const err = error as { code?: string; message?: string } | null;
+        return err?.code === "PGRST204" && String(err?.message || "").includes("livery");
+      };
+
+      const stripLiveryField = (batch: typeof routesToInsert) =>
+        batch.map(({ livery: _livery, ...rest }) => rest);
+
       // Batch insert in chunks of 25 to avoid payload/timeout issues on large imports
       const BATCH_SIZE = 25;
       let imported = 0;
       let failedBatches = 0;
+      let warnedAboutMissingLiveryColumn = false;
       for (let i = 0; i < routesToInsert.length; i += BATCH_SIZE) {
         const batch = routesToInsert.slice(i, i + BATCH_SIZE);
         try {
-          const { error } = await supabase.from("routes").insert(batch);
+          let { error } = await supabase.from("routes").insert(batch);
+
+          if (error && isMissingLiveryColumnError(error)) {
+            if (!warnedAboutMissingLiveryColumn) {
+              toast.warning("Routes livery column is missing in this database. Importing without livery values.");
+              warnedAboutMissingLiveryColumn = true;
+            }
+
+            const retry = await supabase.from("routes").insert(stripLiveryField(batch));
+            error = retry.error;
+          }
+
           if (error) {
             console.error(`Batch ${i / BATCH_SIZE + 1} failed:`, error);
             failedBatches++;
             continue;
           }
+
           imported += batch.length;
         } catch (batchError) {
           console.error(`Batch ${i / BATCH_SIZE + 1} error:`, batchError);
@@ -578,8 +614,6 @@ export default function AdminRoutes() {
                     <th className="text-left py-3 px-2 font-medium">Dep</th>
                     <th className="text-left py-3 px-2 font-medium">Arr</th>
                     <th className="text-left py-3 px-2 font-medium">Aircraft</th>
-                    <th className="text-left py-3 px-2 font-medium">Livery</th>
-                    <th className="text-left py-3 px-2 font-medium">Type</th>
                     <th className="text-left py-3 px-2 font-medium">Time</th>
                     <th className="text-left py-3 px-2 font-medium">Min Rank</th>
                     <th className="text-left py-3 px-2 font-medium">Active</th>
@@ -598,12 +632,18 @@ export default function AdminRoutes() {
                       <td className="py-3 px-2 font-medium">{route.route_number}</td>
                       <td className="py-3 px-2 font-mono">{route.dep_icao}</td>
                       <td className="py-3 px-2 font-mono">{route.arr_icao}</td>
-                      <td className="py-3 px-2">{route.aircraft_icao}</td>
-                      <td className="py-3 px-2 text-muted-foreground">{route.livery || "-"}</td>
                       <td className="py-3 px-2">
-                        <Badge variant="secondary" className="capitalize">
-                          {route.route_type}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
+                            getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
+                              <span key={`${route.id}-ac-${pair.icao}-${index}`} className="text-xs">
+                                {pair.icao}{pair.livery ? ` - ${pair.livery}` : ""}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-2">
                         {Math.floor(route.est_flight_time_minutes / 60)}:

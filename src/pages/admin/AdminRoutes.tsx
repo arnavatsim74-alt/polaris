@@ -602,7 +602,6 @@ export default function AdminRoutes() {
                     <th className="text-left py-3 px-2 font-medium">Dep</th>
                     <th className="text-left py-3 px-2 font-medium">Arr</th>
                     <th className="text-left py-3 px-2 font-medium">Aircraft</th>
-                    <th className="text-left py-3 px-2 font-medium">Livery</th>
                     <th className="text-left py-3 px-2 font-medium">Type</th>
                     <th className="text-left py-3 px-2 font-medium">Time</th>
                     <th className="text-left py-3 px-2 font-medium">Min Rank</th>

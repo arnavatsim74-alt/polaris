@@ -694,7 +694,7 @@ export default function AdminRoutes() {
                           {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
                             getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
                               <span key={`${route.id}-ac-${pair.icao}-${index}`} className="text-xs">
-                                {pair.icao}
+{pair.icao}{pair.livery ? ` - ${pair.livery}` : ""}
                               </span>
                             ))
                           ) : (

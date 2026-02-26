@@ -295,17 +295,13 @@ export default function RoutesPage() {
                       <td className="py-3 px-2">
                         <div className="flex flex-col gap-1">
                           {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
-                            getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => {
-                              const fallbackLivery = aircraft?.fallbackLiveryByIcao.get(pair.icao);
-                              const displayLivery = pair.livery || fallbackLivery || "";
-
-                              return (
-                                <div key={`${route.id}-pair-${pair.icao}-${index}`} className="flex items-center gap-1">
-                                  <Plane className="h-3 w-3 text-muted-foreground" />
-                                  <span>{pair.icao}{displayLivery ? ` - ${displayLivery}` : ""}</span>
-                                </div>
-                              );
-                            })
+                            getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
+                              <div key={`${route.id}-pair-${pair.icao}-${index}`} className="flex items-center gap-1">
+                                <Plane className="h-3 w-3 text-muted-foreground" />
+                                <span>{pair.icao}</span>
+                                {pair.livery && <span className="text-xs text-muted-foreground">({pair.livery})</span>}
+                              </div>
+                            ))
                           ) : (
                             <span className="text-xs text-muted-foreground">-</span>
                           )}

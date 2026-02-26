@@ -529,11 +529,23 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
     .not("aircraft_icao", "is", null)
     .limit(25);
 
-  // Get distinct aircraft ICAO codes
-  const distinctAircraft = [...new Set((aircraftChoices || []).map((a: any) => String(a.aircraft_icao || "")).filter(Boolean))];
+  // Get distinct aircraft ICAO codes with their livery
+  const aircraftMap = new Map<string, string>();
+  for (const a of aircraftChoices || []) {
+    const icao = String(a.aircraft_icao || "").toUpperCase();
+    if (icao && !aircraftMap.has(icao)) {
+      aircraftMap.set(icao, a.livery || "");
+    }
+  }
+  const distinctAircraft = Array.from(aircraftMap.entries());
   
   // If multiple aircraft available, show selection dropdown
   if (distinctAircraft.length > 1) {
+    const options = distinctAircraft.map(([icao, livery]) => ({
+      label: livery ? `${icao} - ${livery}` : icao,
+      value: `${route.id}::${icao}`,
+    }));
+
     return Response.json({
       type: 4,
       data: {
@@ -546,10 +558,7 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
             placeholder: "Select aircraft",
             min_values: 1,
             max_values: 1,
-            options: aircraftOptions.map((icao) => ({
-              label: icao.slice(0, 100),
-              value: `${route.id}::${icao}`.slice(0, 100),
-            })),
+            options,
           }],
         }],
         flags: 64,
@@ -558,15 +567,30 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
   }
 
   // Only one aircraft (or none) - use it directly
-  const selectedRoute = aircraftChoices?.length > 0 ? aircraftChoices[0] : route;
-  const link = buildSimbriefUrl(selectedRoute);
+  const selectedIcao = distinctAircraft[0]?.[0] || route.aircraft_icao;
+  const routeWithAircraft = { ...route, aircraft_icao: selectedIcao };
+  const link = buildSimbriefUrl(routeWithAircraft);
   return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
 };
 
-const handleAircraftSelection = async (routeId: string) => {
-  const { data: route } = await supabase.from("routes").select("id,route_number,dep_icao,arr_icao,aircraft_icao,livery").eq("id", routeId).maybeSingle();
-  if (!route) return ephemeralReply("Aircraft selection failed. Route not found.");
-  if (!route.aircraft_icao) return ephemeralReply("Aircraft not configured for this route.");
+const handleAircraftSelection = async (selection: string) => {
+  const [routeId, aircraftIcao] = selection.split("::");
+  if (!routeId || !aircraftIcao) {
+    return ephemeralReply("Invalid aircraft selection. Please try again.");
+  }
+
+  const { data: route } = await supabase.from("routes").select("id,route_number,dep_icao,arr_icao,aircraft_icao,livery")
+    .eq("id", routeId)
+    .eq("aircraft_icao", aircraftIcao)
+    .maybeSingle();
+  
+  if (!route) {
+    // Fallback: just use the aircraft ICAO provided
+    const fallbackRoute = { id: routeId, route_number: "", dep_icao: "", arr_icao: "", aircraft_icao: aircraftIcao };
+    const link = buildSimbriefUrl(fallbackRoute);
+    return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
+  }
+
   const link = buildSimbriefUrl(route);
   return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
 };

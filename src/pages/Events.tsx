@@ -9,6 +9,41 @@ import { Calendar, MapPin, Clock, Users, Plane, Check } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
+function renderSimpleMarkdown(markdown?: string | null) {
+  const text = markdown || "";
+
+  const emojiTokens: string[] = [];
+  const textWithEmojiTokens = text.replace(/<(?:(a)?):([a-zA-Z0-9_]+):(\d+)>/g, (_, animated: string, name: string, id: string) => {
+    const ext = animated ? "gif" : "png";
+    const safeName = name.replace(/[^a-zA-Z0-9_]/g, "");
+    const safeId = id.replace(/\D/g, "");
+    const emojiHtml = `<img src="https://cdn.discordapp.com/emojis/${safeId}.${ext}" alt=":${safeName}:" class="inline-block h-4 w-4 align-text-bottom" loading="lazy" />`;
+    const token = `__DISCORD_EMOJI_${emojiTokens.length}__`;
+    emojiTokens.push(emojiHtml);
+    return token;
+  });
+
+  const escaped = textWithEmojiTokens
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const html = escaped
+    .replace(/^### (.*)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+    .replace(/^# (.*)$/gm, "<h1>$1</h1>")
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+    .replace(/\n/g, "<br />");
+
+  const withDiscordEmoji = emojiTokens.reduce((acc, emojiHtml, index) => (
+    acc.replaceAll(`__DISCORD_EMOJI_${index}__`, emojiHtml)
+  ), html);
+
+  return { __html: withDiscordEmoji || "-" };
+}
+
 const formatLocalWithTimezone = (iso: string) => {
   const d = new Date(iso);
   const date = format(d, "MMM dd, HH:mm");
@@ -131,7 +166,7 @@ export default function Events() {
                 <CardHeader>
                   <CardTitle className="line-clamp-1">{event.name}</CardTitle>
                   <CardDescription className="line-clamp-2">
-                    {event.description || "No description provided"}
+                    <span dangerouslySetInnerHTML={renderSimpleMarkdown(event.description)} />
                   </CardDescription>
                 </CardHeader>
 

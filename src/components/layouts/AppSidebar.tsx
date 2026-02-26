@@ -109,7 +109,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="pb-2">
+      <SidebarContent className="pb-2 scrollbar-hide">
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] uppercase tracking-wider">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>

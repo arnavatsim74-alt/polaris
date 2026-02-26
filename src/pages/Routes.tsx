@@ -56,11 +56,20 @@ export default function RoutesPage() {
   const { data: aircraft } = useQuery({
     queryKey: ["routes-aircraft-filter-options"],
     queryFn: async () => {
-      const { data } = await supabase.from("aircraft").select("icao_code").order("icao_code");
+      const { data } = await supabase.from("aircraft").select("icao_code,livery").order("icao_code");
       const uniqueCodes = Array.from(
         new Set((data || []).map((ac) => ac.icao_code).filter(Boolean))
       );
-      return uniqueCodes;
+
+      const fallbackLiveryByIcao = new Map<string, string>();
+      for (const ac of data || []) {
+        const icao = String(ac.icao_code || "").toUpperCase();
+        const livery = String(ac.livery || "").trim();
+        if (!icao || !livery || fallbackLiveryByIcao.has(icao)) continue;
+        fallbackLiveryByIcao.set(icao, livery);
+      }
+
+      return { uniqueCodes, fallbackLiveryByIcao };
     },
   });
 
@@ -185,7 +194,7 @@ export default function RoutesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Aircraft</SelectItem>
-                  {aircraft?.map((icaoCode) => (
+                  {aircraft?.uniqueCodes.map((icaoCode) => (
                     <SelectItem key={icaoCode} value={icaoCode}>
                       {icaoCode}
                     </SelectItem>

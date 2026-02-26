@@ -74,7 +74,7 @@ const App = () => (
           <BrowserRouter>
             <AuthProvider>
               <RouteScopedErrorBoundary>
-                <Suspense fallback={<AppLoader />}>
+                <Suspense fallback={null}>
                   <Routes>
                     <Route path="/auth" element={<AuthPage />} />
                     <Route path="/apply" element={<ApplyPage />} />

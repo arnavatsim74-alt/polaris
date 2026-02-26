@@ -181,7 +181,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setPilot(null);
           setIsAdmin(false);
           setIsPilotLoading(false);
-          lastLoadedUserIdRef.current = null;
           return;
         }
 
@@ -189,9 +188,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const isRefetchableEvent = event === "SIGNED_IN" || event === "USER_UPDATED";
-        if (!isRefetchableEvent) {
-          return;
+        if (session?.user) {
+          setIsPilotLoading(true);
+          setTimeout(async () => {
+            await fetchPilotData(session.user.id, session.user);
+            // After fetching, try admin setup if needed
+            await tryAdminSetup(session);
+          }, 0);
         }
 
         if (event === "SIGNED_IN" && lastLoadedUserIdRef.current === session.user.id) {

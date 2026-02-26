@@ -42,7 +42,7 @@ const PRACTICAL_TASKS = [
   '7. Proceed direct "MR" Moscow Shr. VOR.',
   "8. Transition to pattern for landing at any runway at UUEE.",
   "9. Land, park, and exit.",
-  "> **Note - You are pilot currently Provisional Pilot. you can fly for AFLV Any time and any route under the cadet rank.**",
+  "> **Note - You are pilot currently Provisional Pilot. you can fly for LATV Any time and any route under the cadet rank.**",
 ];
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ const embedResponse = ({
   Response.json({
     type: 4,
     data: {
-      embeds: [{ title, description, color, fields, image: imageUrl ? { url: imageUrl } : undefined, timestamp: new Date().toISOString() }],
+      embeds: [{ title, description, color, fields, image: imageUrl ? { url: imageUrl } : undefined, footer: { text: "Powered by VACompany" }, timestamp: new Date().toISOString() }],
       ...(ephemeral ? { flags: 64 } : {}),
     },
   });
@@ -333,7 +333,7 @@ const handleGetEvents = async () => {
         { name: "Aircraft", value: aircraftDisplay,                         inline: true },
       ],
       image: event.banner_url ? { url: event.banner_url } : undefined,
-      footer: { text: "Use the Participate button below to auto-assign your gates." },
+      footer: { text: "Use the Participate button below to auto-assign your gates. • Powered by VACompany" },
     };
   });
 
@@ -366,30 +366,14 @@ const splitRouteValues = (value: string | null | undefined) => {
     .filter(Boolean);
 };
 
-const parseAircraftChoices = (value: string | null | undefined) => {
-  const raw = String(value || "").toUpperCase();
-  if (!raw.trim()) return [] as string[];
-
-  const matchedIcaos = raw.match(/[A-Z0-9]{3,5}/g) || [];
-  const normalized = matchedIcaos
-    .map((token) => token.trim())
-    .filter((token) => token.length >= 3 && token.length <= 5 && /\d/.test(token));
-
-  if (normalized.length > 0) {
-    return [...new Set(normalized)].slice(0, 25);
-  }
-
-  return [...new Set(splitRouteValues(raw).map((token) => token.toUpperCase()))].slice(0, 25);
-};
-
 const buildSimbriefUrl = (route: any) => {
-  const flightNumber = String(route?.route_number || "AFLV").replace(/[^A-Z0-9]/gi, "").toUpperCase() || "AFLV";
+  const flightNumber = String(route?.route_number || "LATV").replace(/[^A-Z0-9]/gi, "").toUpperCase() || "LATV";
   const params = new URLSearchParams({
     orig: String(route?.dep_icao || "").toUpperCase(),
     dest: String(route?.arr_icao || "").toUpperCase(),
     type: String(route?.aircraft_icao || "").toUpperCase(),
     callsign: flightNumber,
-    airline: "AFLV",
+    airline: "LATV",
     fltnum: flightNumber,
   });
   return `https://www.simbrief.com/system/dispatch.php?${params.toString()}`;
@@ -403,7 +387,7 @@ const handleChallengeList = async () => {
     .order("created_at", { ascending: false })
     .limit(5);
 
-  if (!challenges?.length) return Response.json({ type: 4, data: { embeds: [{ title: "Challenges", description: "No active challenges right now.", color: COLORS.BLUE }], flags: 64 } });
+  if (!challenges?.length) return Response.json({ type: 4, data: { embeds: [{ title: "Challenges", description: "No active challenges right now.", color: COLORS.BLUE, footer: { text: "Powered by VACompany" } }], flags: 64 } });
 
   const embeds = challenges.map((c: any) => {
     const legs = [...(c.challenge_legs || [])]
@@ -419,21 +403,15 @@ const handleChallengeList = async () => {
       description: `${c.description || "Community challenge"}${legs ? `\n\n${legs}` : ""}`,
       color: COLORS.BLUE,
       image: c.image_url ? { url: c.image_url } : undefined,
+      footer: { text: "Powered by VACompany" },
     };
   });
-
-  const dispatchEmbeds = challenges.map((c: any) => ({
-    title: `${c.name} Dispatch`,
-    description: "Mission SimBrief® Dispatch Panel\n\nTap a button below to manage your World Tour planning.\n• **SimBrief:** Generate a SimBrief link for your selected Route and aircraft.",
-    color: COLORS.BLUE,
-    footer: { text: `SimBrief Dispatcher | ${c.name}` },
-  }));
 
   const components = challenges.flatMap((c: any) => [
     actionRow(btn(1, `challenge_accept:${c.id}`, "Participate"), btn(1, `challenge_dispatch:${c.id}`, "Dispatch")),
   ]);
 
-  return Response.json({ type: 4, data: { embeds: [...embeds, ...dispatchEmbeds], components, flags: 64 } });
+  return Response.json({ type: 4, data: { embeds, components } });
 };
 
 const notamColor = (priority: string | null | undefined) => {
@@ -447,7 +425,7 @@ const handleNotams = async () => {
   const nowIso = new Date().toISOString();
   const { data: notams } = await supabase.from("notams").select("title,content,priority").eq("is_active", true).or(`expires_at.is.null,expires_at.gte.${nowIso}`).order("created_at", { ascending: false }).limit(8);
   if (!notams?.length) return embedResponse({ title: "NOTAMs", description: "No active NOTAMs.", color: COLORS.BLUE });
-  const embeds = notams.map((n: any) => ({ title: `📢 ${n.title}`, description: String(n.content || "").slice(0, 350), color: notamColor(n.priority), fields: [{ name: "Priority", value: String(n.priority || "info").toUpperCase(), inline: true }] }));
+  const embeds = notams.map((n: any) => ({ title: `📢 ${n.title}`, description: String(n.content || "").slice(0, 350), color: notamColor(n.priority), fields: [{ name: "Priority", value: String(n.priority || "info").toUpperCase(), inline: true }], footer: { text: "Powered by VACompany" } }));
   return Response.json({ type: 4, data: { embeds } });
 };
 
@@ -520,7 +498,7 @@ const handleDispatchButton = async (challengeId: string) => {
   return Response.json({
     type: 4,
     data: {
-      embeds: [{ title: "Select Leg", description: "Choose which leg to dispatch.", color: COLORS.BLUE }],
+      embeds: [{ title: "Select Leg", description: "Choose which leg to dispatch.", color: COLORS.BLUE, footer: { text: "Powered by VACompany" } }],
       components: [{
         type: 1,
         components: [{
@@ -541,18 +519,30 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
   const { data: route } = await supabase.from("routes").select("id,route_number,dep_icao,arr_icao,aircraft_icao").eq("id", routeId).maybeSingle();
   if (!route?.id) return ephemeralReply("Selected leg not found.");
 
-  const aircraftOptions = parseAircraftChoices(route.aircraft_icao);
+  // Get all available aircraft for this route (by route_number, dep, arr combination)
+  const { data: aircraftChoices } = await supabase
+    .from("routes")
+    .select("id,aircraft_icao,livery")
+    .eq("route_number", route.route_number)
+    .eq("dep_icao", route.dep_icao)
+    .eq("arr_icao", route.arr_icao)
+    .not("aircraft_icao", "is", null)
+    .limit(25);
 
-  if (aircraftOptions.length > 1) {
+  // Get distinct aircraft ICAO codes
+  const distinctAircraft = [...new Set((aircraftChoices || []).map((a: any) => String(a.aircraft_icao || "")).filter(Boolean))];
+  
+  // If multiple aircraft available, show selection dropdown
+  if (distinctAircraft.length > 1) {
     return Response.json({
       type: 4,
       data: {
-        embeds: [{ title: "Select Aircraft", description: `Multiple aircraft found for ${route.dep_icao}-${route.arr_icao}.`, color: COLORS.BLUE }],
+        embeds: [{ title: "Select Aircraft", description: `Multiple aircraft available for ${route.dep_icao}-${route.arr_icao}. Please select one.`, color: COLORS.BLUE, footer: { text: "Powered by VACompany" } }],
         components: [{
           type: 1,
           components: [{
             type: 3,
-            custom_id: `challenge_aircraft_select:${challengeId}`,
+            custom_id: `challenge_aircraft_select:${routeId}`,
             placeholder: "Select aircraft",
             min_values: 1,
             max_values: 1,
@@ -567,20 +557,17 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
     });
   }
 
-  const selectedAircraft = aircraftOptions[0] || parseAircraftChoices(route.aircraft_icao)[0] || String(route.aircraft_icao || "").trim().toUpperCase();
-  const link = buildSimbriefUrl({ ...route, aircraft_icao: selectedAircraft });
+  // Only one aircraft (or none) - use it directly
+  const selectedRoute = aircraftChoices?.length > 0 ? aircraftChoices[0] : route;
+  const link = buildSimbriefUrl(selectedRoute);
   return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
 };
 
-const handleAircraftSelection = async (selectionValue: string) => {
-  const [routeId, selectedAircraftRaw] = String(selectionValue || "").split("::");
-  const selectedAircraft = String(selectedAircraftRaw || "").trim().toUpperCase();
-
-  const { data: route } = await supabase.from("routes").select("dep_icao,arr_icao,aircraft_icao,route_number").eq("id", routeId).maybeSingle();
-  if (!route) return ephemeralReply("Aircraft selection failed.");
-
-  const aircraft = selectedAircraft || String(route.aircraft_icao || "").trim().toUpperCase();
-  const link = buildSimbriefUrl({ ...route, aircraft_icao: aircraft });
+const handleAircraftSelection = async (routeId: string) => {
+  const { data: route } = await supabase.from("routes").select("id,route_number,dep_icao,arr_icao,aircraft_icao,livery").eq("id", routeId).maybeSingle();
+  if (!route) return ephemeralReply("Aircraft selection failed. Route not found.");
+  if (!route.aircraft_icao) return ephemeralReply("Aircraft not configured for this route.");
+  const link = buildSimbriefUrl(route);
   return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
 };
 
@@ -589,7 +576,7 @@ const createRecruitmentEmbed = async () => {
   const res = await discordApi(`/channels/${RECRUITMENTS_CHANNEL_ID}/messages`, {
     method: "POST",
     body: JSON.stringify({
-      embeds: [{ title: "AFLV Recruitments", description: "Click **Fly High** to open your recruitment ticket and start your entrance written exam.", color: COLORS.BLUE }],
+      embeds: [{ title: "LATV Recruitments", description: "Click **Fly High** to open your recruitment ticket and start your entrance written exam.", color: COLORS.BLUE, footer: { text: "Powered by VACompany" } }],
       components: [actionRow(btn(1, RECRUITMENT_BUTTON_CUSTOM_ID, "Fly High"))],
     }),
   });
@@ -804,13 +791,14 @@ const handlePracticalReviewModal = async (body: any, customId: string) => {
       type: 4,
       data: {
         embeds: [{
-          title: "AFLV | Practical Review", color,
+          title: "LATV | Practical Review", color,
           description: `Practical review complete.\n**Result:** ${outcome}`,
           fields: [
             { name: "Pilot",        value: result.discordUserId ? `<@${result.discordUserId}>` : String((result.practical as any)?.pilots?.full_name || "Unknown"), inline: true },
             { name: "Practical ID", value: practicalId, inline: false },
             ...(remarks?.trim() ? [{ name: "Remarks", value: remarks.trim().slice(0, 1024), inline: false }] : []),
           ],
+          footer: { text: "Powered by VACompany" },
           timestamp: new Date().toISOString(),
         }],
       },
@@ -879,8 +867,9 @@ const processRecruitmentButton = async (body: any): Promise<string> => {
     body: JSON.stringify({
       content: `<@${discordUserId}>`,
       embeds: [{
-        title: "AFLV | Recruitment Written Test", color: COLORS.BLUE,
+        title: "LATV | Recruitment Written Test", color: COLORS.BLUE,
         description: ["Please complete your entrance written exam using the link below:", examUrl, "", "After you pass, click **Continue** below.", "**Note:** If you fail, there is a 24-hour cooldown before a new written test link is issued. if new link is not issued please inform respective authorities."].join("\n"),
+        footer: { text: "Powered by VACompany" },
         timestamp: new Date().toISOString(),
       }],
       components: [actionRow(btn(1, `${RECRUITMENT_CALLSIGN_BUTTON_PREFIX}${token}`, "Continue"))],
@@ -948,7 +937,7 @@ const handleOpenCallsignModal = async (body: any, token: string) => {
       custom_id: `${RECRUITMENT_CALLSIGN_MODAL_PREFIX}${token}`.slice(0, 100),
       title: "Continue",
       components: [
-        actionRow({ type: 4, custom_id: "preferred_callsign", label: "Preferred Callsign (AFLVXXX)", style: 1, min_length: 7, max_length: 7, required: true, placeholder: "AFLV123" }),
+        actionRow({ type: 4, custom_id: "preferred_callsign", label: "Preferred Callsign (LATVXXX)", style: 1, min_length: 7, max_length: 7, required: true, placeholder: "LATV123" }),
         actionRow({ type: 4, custom_id: "contact_email", label: "Registration Email (if not Discord)", style: 1, required: false, placeholder: "name@example.com" }),
       ],
     },
@@ -960,7 +949,7 @@ const handleSubmitCallsignModal = async (body: any, token: string) => {
   if (!discordUserId) return ephemeralReply("Missing Discord user context.");
 
   const preferredPid = readModalInput(body, "preferred_callsign").toUpperCase().trim();
-  if (!/^AFLV[A-Z0-9]{3}$/.test(preferredPid)) return ephemeralReply("Invalid format. Use AFLVXXX (letters/numbers).");
+  if (!/^LATV[A-Z0-9]{3}$/.test(preferredPid)) return ephemeralReply("Invalid format. Use LATVXXX (letters/numbers).");
 
   const email = readModalInput(body, "contact_email").trim();
   const { data, error } = await supabase.rpc("set_recruitment_callsign_details", { p_token: token, p_pid: preferredPid, p_email: email || null });
@@ -1004,20 +993,21 @@ const handleRecruitmentPracticalConfirm = async (token: string) => {
 };
 
 const buildPracticalAssignedInteraction = (pidInput: string, practicalIdInput: string) => {
-  const pid         = String(pidInput || "AFLV");
-  const shortPid    = pid.replace(/^AFLV/i, "") || pid;
+  const pid         = String(pidInput || "LATV");
+  const shortPid    = pid.replace(/^LATV/i, "") || pid;
   const practicalId = String(practicalIdInput || "");
   // Public — visible in the recruitment channel
   return Response.json({
     type: 4,
     data: {
       embeds: [{
-        title: "AFLV | Practical Assigned", color: COLORS.BLUE,
+        title: "LATV | Practical Assigned", color: COLORS.BLUE,
         description: "Your practical is assigned. Complete the task and wait for examiner review.",
         fields: [
           { name: "Practical Tasks",     value: PRACTICAL_TASKS.join("\n") },
           { name: "Aircraft / Callsign", value: `ATYP - C172\nCALLSIGN - Aeroflot ${shortPid}CR` },
         ],
+        footer: { text: "Powered by VACompany" },
         timestamp: new Date().toISOString(),
       }],
       components: practicalId ? [actionRow(
@@ -1068,18 +1058,18 @@ const handleRecruitmentPracticalReady = async (body: any, token: string) => {
         const { data: existingPractical } = await supabase.from("academy_practicals").select("id")
           .eq("pilot_id", pilotForFallback.id).in("status", ["scheduled", "completed"]).ilike("notes", "Recruitment practical%")
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
-        if (existingPractical?.id) return buildPracticalAssignedInteraction(String(pilotForFallback.pid || "AFLV"), String(existingPractical.id));
+        if (existingPractical?.id) return buildPracticalAssignedInteraction(String(pilotForFallback.pid || "LATV"), String(existingPractical.id));
 
         const courseIdRaw = await getSiteSetting("recruitment_practical_id");
         const courseId    = courseIdRaw && /^[0-9a-f-]{36}$/i.test(String(courseIdRaw)) ? String(courseIdRaw) : null;
-        const shortPid    = String(pilotForFallback.pid || "AFLV").replace(/^AFLV/i, "");
+        const shortPid    = String(pilotForFallback.pid || "LATV").replace(/^LATV/i, "");
         const practicalNotes = ["Recruitment practical", ...PRACTICAL_TASKS, "", `ATYP - C172`, `CALLSIGN - Aeroflot ${shortPid}CR`].join("\n");
 
         const { data: createdPractical, error: createError } = await supabase.from("academy_practicals")
           .insert({ pilot_id: pilotForFallback.id, course_id: courseId, status: "scheduled", notes: practicalNotes })
           .select("id").single();
         if (createError) return ephemeralReply(createError.message || "Could not assign practical.");
-        return buildPracticalAssignedInteraction(String(pilotForFallback.pid || "AFLV"), String(createdPractical?.id || ""));
+        return buildPracticalAssignedInteraction(String(pilotForFallback.pid || "LATV"), String(createdPractical?.id || ""));
       }
     }
   }
@@ -1087,7 +1077,7 @@ const handleRecruitmentPracticalReady = async (body: any, token: string) => {
   if (data?.already_assigned) return ephemeralReply("Practical already assigned. Please complete it and wait for staff review.");
   if (data?.ok === false)      return ephemeralReply(String(data?.message || "Could not assign practical."));
 
-  return buildPracticalAssignedInteraction(String(data?.pid || "AFLV"), String(data?.practical_id || ""));
+  return buildPracticalAssignedInteraction(String(data?.pid || "LATV"), String(data?.practical_id || ""));
 };
 
 // ─── Main server ──────────────────────────────────────────────────────────────

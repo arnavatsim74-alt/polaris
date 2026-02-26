@@ -149,32 +149,10 @@ export default function AdminRoutes() {
     return result;
   };
 
-  const countDelimiterOutsideQuotes = (line: string, delimiter: string) => {
-    let count = 0;
-    let inQuotes = false;
-
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (!inQuotes && char === delimiter) {
-        count++;
-      }
-    }
-
-    return count;
-  };
-
-  const detectDelimiter = (headerLine: string, firstDataLine?: string) => {
-    const candidates = ["\t", ";", ","];
-    const sample = [headerLine, firstDataLine || ""].filter(Boolean);
-
-    const scored = candidates.map((delimiter) => ({
-      delimiter,
-      score: sample.reduce((sum, line) => sum + countDelimiterOutsideQuotes(line, delimiter), 0),
-    }));
-
-    return scored.sort((a, b) => b.score - a.score)[0]?.delimiter || ",";
+  const detectDelimiter = (headerLine: string) => {
+    if (headerLine.includes("\t")) return "\t";
+    if (headerLine.includes(";")) return ";";
+    return ",";
   };
 
   // Normalize header name for flexible matching
@@ -232,7 +210,7 @@ export default function AdminRoutes() {
         return;
       }
 
-      const delimiter = detectDelimiter(lines[0], lines[1]);
+      const delimiter = detectDelimiter(lines[0]);
       const headers = parseCSVLine(lines[0], delimiter);
 
       // Find column indices using flexible matching
@@ -636,6 +614,7 @@ export default function AdminRoutes() {
                     <th className="text-left py-3 px-2 font-medium">Dep</th>
                     <th className="text-left py-3 px-2 font-medium">Arr</th>
                     <th className="text-left py-3 px-2 font-medium">Aircraft</th>
+                    <th className="text-left py-3 px-2 font-medium">Type</th>
                     <th className="text-left py-3 px-2 font-medium">Time</th>
                     <th className="text-left py-3 px-2 font-medium">Min Rank</th>
                     <th className="text-left py-3 px-2 font-medium">Active</th>
@@ -654,6 +633,32 @@ export default function AdminRoutes() {
                       <td className="py-3 px-2 font-medium">{route.route_number}</td>
                       <td className="py-3 px-2 font-mono">{route.dep_icao}</td>
                       <td className="py-3 px-2 font-mono">{route.arr_icao}</td>
+                      <td className="py-3 px-2">
+                        <div className="flex flex-col gap-1">
+                          {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
+                            getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
+                              <span key={`${route.id}-ac-${pair.icao}-${index}`} className="text-xs">
+                                {pair.icao}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-2 text-muted-foreground">
+                        <div className="flex flex-col gap-1">
+                          {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
+                            getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
+                              <span key={`${route.id}-liv-${pair.icao}-${index}`} className="text-xs">
+                                {pair.livery || "-"}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs">-</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 px-2">
                         <div className="flex flex-col gap-1">
                           {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (

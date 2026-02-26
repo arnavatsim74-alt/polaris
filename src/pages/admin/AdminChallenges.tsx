@@ -18,17 +18,25 @@ import { toast } from "sonner";
 
 type ChallengeForm = { name: string; description: string; image_url: string };
 
-const removeRouteLegBlock = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
+const ROUTE_LEGS_START = "<!-- ROUTE_LEGS_START -->";
+const ROUTE_LEGS_END = "<!-- ROUTE_LEGS_END -->";
 
-  return trimmed
-    .replace(/\n?@?--\s*ROUTE_LEGS_START\s*--@?\n?/gi, "\n")
-    .replace(/\n?@?--\s*ROUTE_LEGS_END\s*--@?\n?/gi, "\n")
-    .replace(/\n?<!--\s*ROUTE_LEGS_START\s*-->\n?/gi, "\n")
-    .replace(/\n?<!--\s*ROUTE_LEGS_END\s*-->\n?/gi, "\n")
-    .replace(/\n?### Route Legs\n(?:\d+\. .*\n?)*$/m, "")
-    .trim();
+const removeRouteLegBlock = (value: string) => {
+  const startIndex = value.indexOf(ROUTE_LEGS_START);
+  const endIndex = value.indexOf(ROUTE_LEGS_END);
+
+  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+    return value.trim();
+  }
+
+  const before = value.slice(0, startIndex).trim();
+  const after = value.slice(endIndex + ROUTE_LEGS_END.length).trim();
+
+  if (!before) return after;
+  if (!after) return before;
+  return `${before}
+
+${after}`;
 };
 
 const buildRouteLegBlock = (routes: any[]) => {
@@ -40,8 +48,10 @@ const buildRouteLegBlock = (routes: any[]) => {
     return `${index + 1}. ${route.route_number || "N/A"} | ${route.dep_icao || "N/A"}-${route.arr_icao || "N/A"} | ${route.aircraft_icao || "N/A"} | ${duration}`;
   });
 
-  return `### Route Legs
-${lines.join("\n")}`;
+  return `${ROUTE_LEGS_START}
+### Route Legs
+${lines.join("\n")}
+${ROUTE_LEGS_END}`;
 };
 
 const mergeDescriptionWithRouteLegs = (description: string, routes: any[]) => {

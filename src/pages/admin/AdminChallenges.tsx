@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -17,6 +17,41 @@ import { Shield, Plus, Trash2, Edit, Target } from "lucide-react";
 import { toast } from "sonner";
 
 type ChallengeForm = { name: string; description: string; image_url: string };
+
+const removeRouteLegBlock = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  return trimmed
+    .replace(/\n?@?--\s*ROUTE_LEGS_START\s*--@?\n?/gi, "\n")
+    .replace(/\n?@?--\s*ROUTE_LEGS_END\s*--@?\n?/gi, "\n")
+    .replace(/\n?<!--\s*ROUTE_LEGS_START\s*-->\n?/gi, "\n")
+    .replace(/\n?<!--\s*ROUTE_LEGS_END\s*-->\n?/gi, "\n")
+    .replace(/\n?### Route Legs\n(?:\d+\. .*\n?)*$/m, "")
+    .trim();
+};
+
+const buildRouteLegBlock = (routes: any[]) => {
+  if (!routes.length) return "";
+
+  const lines = routes.map((route: any, index: number) => {
+    const totalMinutes = Number(route.est_flight_time_minutes || 0);
+    const duration = `${Math.floor(totalMinutes / 60)}:${String(totalMinutes % 60).padStart(2, "0")}`;
+    return `${index + 1}. ${route.route_number || "N/A"} | ${route.dep_icao || "N/A"}-${route.arr_icao || "N/A"} | ${route.aircraft_icao || "N/A"} | ${duration}`;
+  });
+
+  return `### Route Legs
+${lines.join("\n")}`;
+};
+
+const mergeDescriptionWithRouteLegs = (description: string, routes: any[]) => {
+  const baseDescription = removeRouteLegBlock(description || "");
+  const routeLegBlock = buildRouteLegBlock(routes);
+  if (!routeLegBlock) return baseDescription;
+  return baseDescription ? `${baseDescription}
+
+${routeLegBlock}` : routeLegBlock;
+};
 
 export default function AdminChallenges() {
   const { isAdmin } = useAuth();
@@ -161,6 +196,24 @@ export default function AdminChallenges() {
       [r.route_number, r.dep_icao, r.arr_icao, r.aircraft_icao].some((v) => String(v || "").toLowerCase().includes(q)),
     );
   }, [routes, routeSearch]);
+
+  const selectedRoutes = useMemo(() => {
+    if (!routes || selectedRouteIds.length === 0) return [];
+    const routeMap = new Map((routes || []).map((route: any) => [route.id, route]));
+    return selectedRouteIds
+      .map((id) => routeMap.get(id))
+      .filter(Boolean);
+  }, [routes, selectedRouteIds]);
+
+  useEffect(() => {
+    if (!isDialogOpen) return;
+
+    setForm((prev) => {
+      const nextDescription = mergeDescriptionWithRouteLegs(prev.description, selectedRoutes);
+      if (nextDescription === prev.description) return prev;
+      return { ...prev, description: nextDescription };
+    });
+  }, [isDialogOpen, selectedRoutes]);
 
   if (!isAdmin) return <Navigate to="/" replace />;
 

@@ -359,6 +359,29 @@ const toDuration = (minutes: number | null | undefined) => {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 };
 
+const splitRouteValues = (value: string | null | undefined) => {
+  return String(value || "")
+    .split(/[\s,;|/]+/)
+    .map((v) => v.trim())
+    .filter(Boolean);
+};
+
+const parseAircraftChoices = (value: string | null | undefined) => {
+  const raw = String(value || "").toUpperCase();
+  if (!raw.trim()) return [] as string[];
+
+  const matchedIcaos = raw.match(/[A-Z0-9]{3,5}/g) || [];
+  const normalized = matchedIcaos
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && token.length <= 5 && /\d/.test(token));
+
+  if (normalized.length > 0) {
+    return [...new Set(normalized)].slice(0, 25);
+  }
+
+  return [...new Set(splitRouteValues(raw).map((token) => token.toUpperCase()))].slice(0, 25);
+};
+
 const buildSimbriefUrl = (route: any) => {
   const flightNumber = String(route?.route_number || "AFLV").replace(/[^A-Z0-9]/gi, "").toUpperCase() || "AFLV";
   const params = new URLSearchParams({
@@ -518,17 +541,9 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
   const { data: route } = await supabase.from("routes").select("id,route_number,dep_icao,arr_icao,aircraft_icao").eq("id", routeId).maybeSingle();
   if (!route?.id) return ephemeralReply("Selected leg not found.");
 
-  const { data: aircraftChoices } = await supabase
-    .from("routes")
-    .select("id,aircraft_icao,livery")
-    .eq("route_number", route.route_number)
-    .eq("dep_icao", route.dep_icao)
-    .eq("arr_icao", route.arr_icao)
-    .not("aircraft_icao", "is", null)
-    .limit(25);
+  const aircraftOptions = parseAircraftChoices(route.aircraft_icao);
 
-  const distinct = [...new Set((aircraftChoices || []).map((a: any) => String(a.aircraft_icao || "")).filter(Boolean))];
-  if (distinct.length > 1) {
+  if (aircraftOptions.length > 1) {
     return Response.json({
       type: 4,
       data: {
@@ -541,10 +556,9 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
             placeholder: "Select aircraft",
             min_values: 1,
             max_values: 1,
-            options: (aircraftChoices || []).map((a: any) => ({
-              label: String(a.aircraft_icao || "N/A").slice(0, 100),
-              description: String(a.livery || "No livery").slice(0, 100),
-              value: String(a.id),
+            options: aircraftOptions.map((icao) => ({
+              label: icao.slice(0, 100),
+              value: `${route.id}::${icao}`.slice(0, 100),
             })),
           }],
         }],
@@ -553,14 +567,20 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
     });
   }
 
-  const link = buildSimbriefUrl(route);
+  const selectedAircraft = aircraftOptions[0] || parseAircraftChoices(route.aircraft_icao)[0] || String(route.aircraft_icao || "").trim().toUpperCase();
+  const link = buildSimbriefUrl({ ...route, aircraft_icao: selectedAircraft });
   return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
 };
 
-const handleAircraftSelection = async (routeId: string) => {
+const handleAircraftSelection = async (selectionValue: string) => {
+  const [routeId, selectedAircraftRaw] = String(selectionValue || "").split("::");
+  const selectedAircraft = String(selectedAircraftRaw || "").trim().toUpperCase();
+
   const { data: route } = await supabase.from("routes").select("dep_icao,arr_icao,aircraft_icao,route_number").eq("id", routeId).maybeSingle();
   if (!route) return ephemeralReply("Aircraft selection failed.");
-  const link = buildSimbriefUrl(route);
+
+  const aircraft = selectedAircraft || String(route.aircraft_icao || "").trim().toUpperCase();
+  const link = buildSimbriefUrl({ ...route, aircraft_icao: aircraft });
   return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
 };
 

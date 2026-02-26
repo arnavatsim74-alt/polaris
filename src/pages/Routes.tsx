@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Route, Search, Plane, FileText, Lock } from "lucide-react";
+import { getAircraftLiveryPairs, getPrimaryAircraft, splitRouteAircraft } from "@/lib/routeAircraft";
 
 const rankLabels: Record<string, string> = {
   cadet: "Cadet",
@@ -55,11 +56,20 @@ export default function RoutesPage() {
   const { data: aircraft } = useQuery({
     queryKey: ["routes-aircraft-filter-options"],
     queryFn: async () => {
-      const { data } = await supabase.from("aircraft").select("icao_code").order("icao_code");
+      const { data } = await supabase.from("aircraft").select("icao_code,livery").order("icao_code");
       const uniqueCodes = Array.from(
         new Set((data || []).map((ac) => ac.icao_code).filter(Boolean))
       );
-      return uniqueCodes;
+
+      const fallbackLiveryByIcao = new Map<string, string>();
+      for (const ac of data || []) {
+        const icao = String(ac.icao_code || "").toUpperCase();
+        const livery = String(ac.livery || "").trim();
+        if (!icao || !livery || fallbackLiveryByIcao.has(icao)) continue;
+        fallbackLiveryByIcao.set(icao, livery);
+      }
+
+      return { uniqueCodes, fallbackLiveryByIcao };
     },
   });
 
@@ -82,7 +92,8 @@ export default function RoutesPage() {
   const filteredRoutes = routes?.filter((route) => {
     const matchesDep = depFilter === "" || route.dep_icao.includes(depFilter.toUpperCase());
     const matchesArr = arrFilter === "" || route.arr_icao.includes(arrFilter.toUpperCase());
-    const matchesAircraft = aircraftFilter === "all" || String(route.aircraft_icao || "").trim().toUpperCase() === aircraftFilter;
+    const matchesAircraft =
+      aircraftFilter === "all" || splitRouteAircraft(route.aircraft_icao).includes(aircraftFilter);
     const matchesType = typeFilter === "all" || route.route_type === typeFilter;
     return matchesDep && matchesArr && matchesAircraft && matchesType;
   });
@@ -113,7 +124,7 @@ export default function RoutesPage() {
       .map((r) => {
         const depScore = depCount.get(r.dep_icao) || 0;
         const arrScore = arrCount.get(r.arr_icao) || 0;
-        const acScore = aircraftCount.get(r.aircraft_icao || "") || 0;
+        const acScore = splitRouteAircraft(r.aircraft_icao).reduce((score, code) => score + (aircraftCount.get(code) || 0), 0);
         const rankScore = r.min_rank === pilot.current_rank ? 2 : 0;
         const totalScore = depScore * 2 + arrScore * 2 + acScore * 3 + rankScore;
         return { ...r, _score: totalScore };
@@ -129,7 +140,8 @@ export default function RoutesPage() {
   };
 
   const handleFilePirep = (route: any) => {
-    navigate(`/file-pirep?dep=${route.dep_icao}&arr=${route.arr_icao}&aircraft=${route.aircraft_icao || ""}&flight=${route.route_number}&type=${route.route_type}`);
+    const primaryAircraft = getPrimaryAircraft(route.aircraft_icao);
+    navigate(`/file-pirep?dep=${route.dep_icao}&arr=${route.arr_icao}&aircraft=${primaryAircraft}&flight=${route.route_number}&type=${route.route_type}`);
   };
 
   return (
@@ -182,7 +194,7 @@ export default function RoutesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Aircraft</SelectItem>
-                  {aircraft?.map((icaoCode) => (
+                  {aircraft?.uniqueCodes.map((icaoCode) => (
                     <SelectItem key={icaoCode} value={icaoCode}>
                       {icaoCode}
                     </SelectItem>
@@ -232,7 +244,7 @@ export default function RoutesPage() {
               {recommendedRoutes.map((route) => (
                 <div key={`rec-${route.id}`} className="rounded-md border p-3">
                   <p className="font-semibold">{route.route_number}</p>
-                  <p className="text-sm text-muted-foreground">{route.dep_icao} → {route.arr_icao} • {route.aircraft_icao}</p>
+                  <p className="text-sm text-muted-foreground">{route.dep_icao} → {route.arr_icao} • {splitRouteAircraft(route.aircraft_icao).join(", ") || "N/A"}</p>
                   <Button size="sm" variant="outline" className="mt-3" onClick={() => handleFilePirep(route)}>
                     <FileText className="h-3 w-3 mr-1" /> File PIREP
                   </Button>
@@ -281,13 +293,21 @@ export default function RoutesPage() {
                       <td className="py-3 px-2 font-mono">{route.dep_icao}</td>
                       <td className="py-3 px-2 font-mono">{route.arr_icao}</td>
                       <td className="py-3 px-2">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1">
-                            <Plane className="h-3 w-3 text-muted-foreground" />
-                            {route.aircraft_icao}
-                          </div>
-                          {route.livery && (
-                            <span className="text-xs text-muted-foreground">{route.livery}</span>
+                        <div className="flex flex-col gap-1">
+                          {getAircraftLiveryPairs(route.aircraft_icao, route.livery).length > 0 ? (
+                            getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => {
+                              const fallbackLivery = aircraft?.fallbackLiveryByIcao.get(pair.icao);
+                              const displayLivery = pair.livery || fallbackLivery || "";
+
+                              return (
+                                <div key={`${route.id}-pair-${pair.icao}-${index}`} className="flex items-center gap-1">
+                                  <Plane className="h-3 w-3 text-muted-foreground" />
+                                  <span>{pair.icao}{displayLivery ? ` - ${displayLivery}` : ""}</span>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </div>
                       </td>

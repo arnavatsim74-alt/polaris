@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -75,7 +75,10 @@ export default function FilePirep() {
   const { data: aircraft } = useQuery({
     queryKey: ["aircraft"],
     queryFn: async () => {
-      const { data } = await supabase.from("aircraft").select("*").order("name");
+      const { data } = await supabase
+        .from("aircraft")
+        .select("id,icao_code,name,livery")
+        .order("name");
       return data || [];
     },
   });
@@ -95,23 +98,11 @@ export default function FilePirep() {
     const pilotRank = rankConfigs.find(r => r.name === pilot.current_rank);
     if (!pilotRank) return null;
 
-    const allowedByRankOrder = new Set(
-      rankConfigs.filter(r => r.order_index <= pilotRank.order_index).map(r => r.name)
-    );
-
     const unlocked = new Set<string>();
     for (const rank of rankConfigs) {
       if (rank.order_index <= pilotRank.order_index) {
         const ac = (rank as any).aircraft_unlocks;
         if (Array.isArray(ac)) ac.forEach((i: string) => unlocked.add(String(i).trim().toUpperCase()));
-      }
-    }
-
-    // Also allow aircraft that are open by min_rank in aircraft table.
-    for (const ac of aircraft || []) {
-      const minRank = (ac as any).min_rank as string | null;
-      if (!minRank || allowedByRankOrder.has(minRank)) {
-        unlocked.add((ac.icao_code || "").trim().toUpperCase());
       }
     }
 
@@ -123,16 +114,20 @@ export default function FilePirep() {
     if (!list) return [];
     const seen = new Set<string>();
     return list.filter(ac => {
-      if (seen.has(ac.icao_code)) return false;
-      seen.add(ac.icao_code);
+      const icaoCode = String(ac.icao_code || "").trim().toUpperCase();
+      if (!icaoCode || seen.has(icaoCode)) return false;
+      seen.add(icaoCode);
       return true;
     });
   };
 
-  const availableAircraft = getUniqueAircraft(
-    (!isEventOrRotw && !showAllAircraft && unlockedAircraftIcaos)
-      ? aircraft?.filter(ac => unlockedAircraftIcaos.includes(ac.icao_code.toUpperCase()))
-      : aircraft
+  const availableAircraft = useMemo(
+    () => getUniqueAircraft(
+      (!isEventOrRotw && !showAllAircraft && unlockedAircraftIcaos)
+        ? aircraft?.filter(ac => unlockedAircraftIcaos.includes(String(ac.icao_code || "").toUpperCase()))
+        : aircraft
+    ),
+    [aircraft, isEventOrRotw, showAllAircraft, unlockedAircraftIcaos]
   );
 
   const { data: multipliers } = useQuery({
@@ -330,7 +325,7 @@ export default function FilePirep() {
                     <SelectTrigger><SelectValue placeholder="Select aircraft" /></SelectTrigger>
                     <SelectContent>
                       {availableAircraft?.map((ac) => (
-                        <SelectItem key={ac.id} value={ac.icao_code}>
+                        <SelectItem key={ac.icao_code} value={String(ac.icao_code).toUpperCase()}>
                           {ac.name}{ac.livery ? ` (${ac.livery})` : ""}
                         </SelectItem>
                       ))}

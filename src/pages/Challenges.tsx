@@ -10,7 +10,19 @@ import { toast } from "sonner";
 
 function renderSimpleMarkdown(markdown?: string | null) {
   const text = markdown || "";
-  const escaped = text
+
+  const emojiTokens: string[] = [];
+  const textWithEmojiTokens = text.replace(/<(?:(a)?):([a-zA-Z0-9_]+):(\d+)>/g, (_, animated: string, name: string, id: string) => {
+    const ext = animated ? "gif" : "png";
+    const safeName = name.replace(/[^a-zA-Z0-9_]/g, "");
+    const safeId = id.replace(/\D/g, "");
+    const emojiHtml = `<img src="https://cdn.discordapp.com/emojis/${safeId}.${ext}" alt=":${safeName}:" class="inline-block h-4 w-4 align-text-bottom" loading="lazy" />`;
+    const token = `__DISCORD_EMOJI_${emojiTokens.length}__`;
+    emojiTokens.push(emojiHtml);
+    return token;
+  });
+
+  const escaped = textWithEmojiTokens
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
@@ -24,7 +36,11 @@ function renderSimpleMarkdown(markdown?: string | null) {
     .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
     .replace(/\n/g, "<br />");
 
-  return { __html: html || "-" };
+  const withDiscordEmoji = emojiTokens.reduce((acc, emojiHtml, index) => (
+    acc.replaceAll(`__DISCORD_EMOJI_${index}__`, emojiHtml)
+  ), html);
+
+  return { __html: withDiscordEmoji || "-" };
 }
 
 export default function Challenges() {

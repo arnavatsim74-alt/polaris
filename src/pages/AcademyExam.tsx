@@ -312,7 +312,7 @@ export default function AcademyExam() {
           <Button onClick={() => setCurrentQuestion(currentQuestion + 1)}>Next</Button>
         ) : (
           <Button onClick={handleSubmit} variant="default">
-            Submit Exam ({Object.keys(answers).length}/{questions?.length} answered)
+            Submit Exam
           </Button>
         )}
       </div>

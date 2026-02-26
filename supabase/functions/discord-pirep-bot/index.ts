@@ -359,6 +359,13 @@ const toDuration = (minutes: number | null | undefined) => {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 };
 
+const splitRouteValues = (value: string | null | undefined) => {
+  return String(value || "")
+    .split(/[\s,;|/]+/)
+    .map((v) => v.trim())
+    .filter(Boolean);
+};
+
 const buildSimbriefUrl = (route: any) => {
   const flightNumber = String(route?.route_number || "LATV").replace(/[^A-Z0-9]/gi, "").toUpperCase() || "LATV";
   const params = new URLSearchParams({
@@ -539,10 +546,9 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
             placeholder: "Select aircraft",
             min_values: 1,
             max_values: 1,
-            options: (aircraftChoices || []).map((a: any) => ({
-              label: String(a.aircraft_icao || "N/A").slice(0, 100),
-              description: String(a.livery || "No livery").slice(0, 100),
-              value: String(a.id),
+            options: aircraftOptions.map((icao) => ({
+              label: icao.slice(0, 100),
+              value: `${route.id}::${icao}`.slice(0, 100),
             })),
           }],
         }],

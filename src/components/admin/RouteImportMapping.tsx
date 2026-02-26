@@ -116,7 +116,16 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
       const rawAircraftValues = splitRouteAircraft(route.aircraft_icao);
       const mappedAircraftValues = rawAircraftValues.map((value) => aircraftMappings[value]?.icao || value);
       const mappedLiveryValues = rawAircraftValues
-        .map((value) => aircraftMappings[value]?.livery || "")
+        .map((value, index) => {
+          const mappedIcao = mappedAircraftValues[index];
+          const selectedLivery = aircraftMappings[value]?.livery || "";
+          if (selectedLivery) return selectedLivery;
+
+          const fallbackLivery = aircraft
+            ?.find((ac) => String(ac.icao_code || "").toUpperCase() === String(mappedIcao || "").toUpperCase() && ac.livery)
+            ?.livery;
+          return fallbackLivery || "";
+        })
         .filter(Boolean);
       
       // Get rank - try auto-mapping first, then user mapping

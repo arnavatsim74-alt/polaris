@@ -289,7 +289,8 @@ export default function RoutesPage() {
                             getAircraftLiveryPairs(route.aircraft_icao, route.livery).map((pair, index) => (
                               <div key={`${route.id}-pair-${pair.icao}-${index}`} className="flex items-center gap-1">
                                 <Plane className="h-3 w-3 text-muted-foreground" />
-                                <span>{pair.icao}{pair.livery ? ` - ${pair.livery}` : ""}</span>
+                                <span>{pair.icao}</span>
+                                {pair.livery && <span className="text-xs text-muted-foreground">({pair.livery})</span>}
                               </div>
                             ))
                           ) : (

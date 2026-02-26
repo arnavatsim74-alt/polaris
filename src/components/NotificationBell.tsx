@@ -23,6 +23,8 @@ export function NotificationBell() {
       return data || [];
     },
     enabled: !!pilot?.id,
+    staleTime: 10_000,
+    gcTime: 60_000,
     refetchInterval: 30000,
   });
 

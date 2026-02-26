@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -169,6 +169,25 @@ export default function AdminChallenges() {
       .map((id) => routeMap.get(id))
       .filter(Boolean);
   }, [routes, selectedRouteIds]);
+
+  useEffect(() => {
+    if (!isDialogOpen) return;
+
+    const legsText = selectedRoutes
+      .map((route: any, index: number) => {
+        const totalMinutes = Number(route.est_flight_time_minutes || 0);
+        const duration = `${Math.floor(totalMinutes / 60)}:${String(totalMinutes % 60).padStart(2, "0")}`;
+        return `| ${route.route_number || "N/A"} | ${route.dep_icao || "----"}-${route.arr_icao || "----"} | ${route.aircraft_icao || "N/A"} | ${duration} |`;
+      })
+      .join("\n");
+
+    setForm((prev) => {
+      const baseDescription = prev.description.replace(/\|.*\|.*\|.*\|.*$/gm, "").trim();
+      const newDescription = legsText ? (baseDescription ? `${baseDescription}\n\n${legsText}` : legsText) : baseDescription;
+      if (newDescription === prev.description) return prev;
+      return { ...prev, description: newDescription };
+    });
+  }, [isDialogOpen, selectedRoutes]);
 
   if (!isAdmin) return <Navigate to="/" replace />;
 

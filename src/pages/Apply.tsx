@@ -26,8 +26,8 @@ const applicationSchema = z.object({
   ageRange: z.enum(["13-16", "17-21", "22-27", "28-34", "35-41", "42-50", "51-60", "Above"]),
   ifcProfileUrl: z.string().min(2, "IFC username is required"),
   otherVaMembership: z.string().min(2, "Please answer if you are a member of another VA or VO"),
-  whyJoinAflv: z.string().min(10, "Please share why you want to join AFLV"),
-  hearAboutAflv: z.string().min(2, "Please share where you heard about AFLV"),
+  whyJoinLatour: z.string().min(10, "Please share why you want to join LATOUR"),
+  hearAboutLatour: z.string().min(2, "Please share where you heard about LATOUR"),
 });
 
 type ApplicationStatus = "idle" | "pending" | "approved" | "rejected";
@@ -44,8 +44,8 @@ export default function ApplyPage() {
   const [ageRange, setAgeRange] = useState("13-16");
   const [ifcProfileUrl, setIfcProfileUrl] = useState("");
   const [otherVaMembership, setOtherVaMembership] = useState("");
-  const [whyJoinAflv, setWhyJoinAflv] = useState("");
-  const [hearAboutAflv, setHearAboutAflv] = useState("");
+  const [whyJoinLatour, setWhyJoinLatour] = useState("");
+  const [hearAboutLatour, setHearAboutLatour] = useState("");
   
   const [isLoading, setIsLoading] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus>("idle");
@@ -58,13 +58,12 @@ export default function ApplyPage() {
     if (!user) return;
     if (isDiscordRegisterFlow) return;
 
-    // If a previous Discord register session exists without oauth=register,
-    // reset to normal application mode so password/email flow is visible again.
     signOut();
-  }, [user, isDiscordRegisterFlow, signOut]);
+  }, [user, isDiscordRegisterFlow]);
 
-  // Check if user already has an application
   useEffect(() => {
+    let isMounted = true;
+
     const checkExistingApplication = async () => {
       if (!user) return;
 
@@ -73,6 +72,8 @@ export default function ApplyPage() {
         .select("status, discord_username, if_grade, is_ifatc, ifc_trust_level, age_range, other_va_membership, hear_about_aflv")
         .eq("user_id", user.id)
         .single();
+
+      if (!isMounted) return;
 
       if (data) {
         const hasExtendedDetails = Boolean(
@@ -92,7 +93,9 @@ export default function ApplyPage() {
     };
 
     checkExistingApplication();
-  }, [user, isDiscordRegisterFlow]);
+
+    return () => { isMounted = false; };
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,8 +113,8 @@ export default function ApplyPage() {
       ageRange,
       ifcProfileUrl,
       otherVaMembership,
-      whyJoinAflv,
-      hearAboutAflv,
+      whyJoinLatour,
+      hearAboutLatour,
     });
 
     if (!validation.success) {
@@ -166,7 +169,7 @@ export default function ApplyPage() {
         ivao_id: null,
         experience_level: ifGrade,
         preferred_simulator: isIfatc,
-        reason_for_joining: whyJoinAflv,
+        reason_for_joining: whyJoinLatour,
         discord_username: normalizedDiscordUsername,
         discord_user_id: discordUserId,
         if_grade: ifGrade,
@@ -175,7 +178,7 @@ export default function ApplyPage() {
         age_range: ageRange,
         ifc_profile_url: ifcProfileUrl.trim().replace(/^@+/, "") || null,
         other_va_membership: otherVaMembership,
-        hear_about_aflv: hearAboutAflv,
+        hear_about_aflv: hearAboutLatour,
       }, { onConflict: "user_id" });
 
       if (appError) {
@@ -255,9 +258,9 @@ export default function ApplyPage() {
           <Card className="w-full max-w-2xl">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4">
-              <img src={aeroflotLogo} alt="Aeroflot Virtual Group" className="h-12 w-auto object-contain" />
+              <img src={aeroflotLogo} alt="LATOUR Virtual" className="h-12 w-auto object-contain" />
             </div>
-            <CardTitle className="text-2xl">Join Aeroflot Virtual Group</CardTitle>
+            <CardTitle className="text-2xl">Join LATOUR Virtual</CardTitle>
             <CardDescription>
               Complete this form to apply for a pilot position with our virtual airline on Infinite Flight
             </CardDescription>
@@ -379,12 +382,10 @@ export default function ApplyPage() {
                     <Input id="otherVaMembership" value={otherVaMembership} onChange={(e) => setOtherVaMembership(e.target.value)} disabled={isLoading} required />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="whyJoinAflv">Why you want to join AFLV? *</Label>
-                    <Input id="whyJoinAflv" value={whyJoinAflv} onChange={(e) => setWhyJoinAflv(e.target.value)} disabled={isLoading} required />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="hearAboutAflv">Where did you hear about AFLV? *</Label>
-                    <Input id="hearAboutAflv" value={hearAboutAflv} onChange={(e) => setHearAboutAflv(e.target.value)} disabled={isLoading} required />
+                    <Label htmlFor="whyJoinLatour">Why you want to join LATOUR? *</Label>
+                    <Input id="whyJoinLatour" value={whyJoinLatour} onChange={(e) => setWhyJoinLatour(e.target.value)} disabled={isLoading} required />
+                    <Label htmlFor="hearAboutLatour">Where did you hear about LATOUR? *</Label>
+                    <Input id="hearAboutLatour" value={hearAboutLatour} onChange={(e) => setHearAboutLatour(e.target.value)} disabled={isLoading} required />
                   </div>
                 </div>
               </div>

@@ -529,15 +529,33 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
     .not("aircraft_icao", "is", null)
     .limit(25);
 
-  // Get distinct aircraft ICAO codes with their livery
-  const aircraftMap = new Map<string, string>();
-  for (const a of aircraftChoices || []) {
-    const icao = String(a.aircraft_icao || "").toUpperCase();
-    if (icao && !aircraftMap.has(icao)) {
-      aircraftMap.set(icao, a.livery || "");
+  // Get distinct aircraft ICAO codes - also handle comma-separated aircraft in single field
+  const aircraftSet = new Set<string>();
+  const liveryMap = new Map<string, string>();
+  
+  // Parse aircraft from the selected route (could be comma-separated)
+  if (route.aircraft_icao) {
+    const aircraftList = String(route.aircraft_icao).split(/[,;|]/).map(s => s.trim()).filter(Boolean);
+    for (const ac of aircraftList) {
+      aircraftSet.add(ac.toUpperCase());
     }
   }
-  const distinctAircraft = Array.from(aircraftMap.entries());
+  
+  // Also add from query results
+  for (const a of aircraftChoices || []) {
+    if (a.aircraft_icao) {
+      const aircraftList = String(a.aircraft_icao).split(/[,;|]/).map(s => s.trim()).filter(Boolean);
+      for (const ac of aircraftList) {
+        const upperAc = ac.toUpperCase();
+        aircraftSet.add(upperAc);
+        if (a.livery && !liveryMap.has(upperAc)) {
+          liveryMap.set(upperAc, a.livery);
+        }
+      }
+    }
+  }
+  
+  const distinctAircraft = Array.from(aircraftSet).map(icao => [icao, liveryMap.get(icao) || ""] as [string, string]);
   
   // If multiple aircraft available, show selection dropdown
   if (distinctAircraft.length > 1) {
@@ -545,6 +563,8 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
       label: livery ? `${icao} - ${livery}` : icao,
       value: `${route.id}::${icao}`,
     }));
+
+    console.log(`[Dispatch] Found ${distinctAircraft.length} aircraft for route ${route.route_number} (${route.dep_icao}-${route.arr_icao}):`, distinctAircraft);
 
     return Response.json({
       type: 4,
@@ -566,11 +586,15 @@ const handleDispatchLegSelection = async (challengeId: string, routeId: string) 
     });
   }
 
-  // Only one aircraft (or none) - use it directly
+  console.log(`[Dispatch] Found ${distinctAircraft.length} aircraft for route ${route.route_number}, directly generating link`);
+
+  // Only one aircraft (or none) - use it directly with a message
   const selectedIcao = distinctAircraft[0]?.[0] || route.aircraft_icao;
   const routeWithAircraft = { ...route, aircraft_icao: selectedIcao };
   const link = buildSimbriefUrl(routeWithAircraft);
-  return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch: ${link}`, flags: 64 } });
+  
+  const aircraftMsg = selectedIcao ? ` (${selectedIcao})` : "";
+  return Response.json({ type: 4, data: { content: `🔗 SimBrief Dispatch${aircraftMsg}: ${link}`, flags: 64 } });
 };
 
 const handleAircraftSelection = async (selection: string) => {

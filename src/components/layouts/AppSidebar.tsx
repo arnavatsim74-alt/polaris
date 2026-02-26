@@ -27,7 +27,7 @@ const pilotNavItems = [
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
   { title: "Events", url: "/events", icon: Calendar },
   { title: "Details", url: "/details", icon: Info },
-  { title: "AFLV Bonus", url: "/aflvbonus", icon: CreditCard },
+  { title: "LATOUR Bonus", url: "/latourbonus", icon: CreditCard },
   { title: "Tracker", url: "/tracker", icon: MapPin },
   { title: "Academy", url: "/academy", icon: BookOpen },
   { title: "Activity", url: "/activity", icon: Activity },
@@ -86,6 +86,7 @@ export function AppSidebar() {
       return data?.value || "";
     },
     staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
   });
 
   const logoSrc = sidebarLogoUrl || aeroflotLogo;
@@ -105,7 +106,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className={cn("flex items-center gap-3 px-3 py-2", isCollapsed && "justify-center")}>
-          <img src={logoSrc} alt="Aeroflot Virtual Group" className={cn("w-auto object-contain", isCollapsed ? "h-8" : "h-10")} />
+          <img src={logoSrc} alt="LATOUR Virtual" className={cn("w-auto object-contain", isCollapsed ? "h-8" : "h-10")} />
         </div>
       </SidebarHeader>
 

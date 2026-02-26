@@ -10,7 +10,6 @@ import { VACOMPANY_URL } from "@/lib/branding";
 import { PolarisFooter } from "@/components/PolarisFooter";
 
 export function AppLayout() {
-  const headerLogo = vacompanyLogo;
   const [zuluTime, setZuluTime] = useState("");
 
   useEffect(() => {

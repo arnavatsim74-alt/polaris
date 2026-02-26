@@ -22,7 +22,7 @@ const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
 const Events = lazy(() => import("@/pages/Events"));
 const Details = lazy(() => import("@/pages/Details"));
 const Challenges = lazy(() => import("@/pages/Challenges"));
-const AflvBonusPage = lazy(() => import("@/pages/AflvBonus"));
+const AflvBonusPage = lazy(() => import("@/pages/LatourBonus"));
 const Tracker = lazy(() => import("@/pages/Tracker"));
 const AdminPireps = lazy(() => import("@/pages/admin/AdminPireps"));
 const AdminRoutes = lazy(() => import("@/pages/admin/AdminRoutes"));
@@ -52,7 +52,13 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
+      gcTime: 5 * 60 * 1000,
       refetchOnWindowFocus: false,
+      retry: 1,
+      throwOnError: false,
+    },
+    mutations: {
+      retry: 0,
     },
   },
 });
@@ -89,7 +95,7 @@ const App = () => (
                       <Route path="events" element={<Events />} />
                       <Route path="details" element={<Details />} />
                       <Route path="challenges" element={<Challenges />} />
-                      <Route path="aflvbonus" element={<AflvBonusPage />} />
+                      <Route path="latourbonus" element={<AflvBonusPage />} />
                       <Route path="frequentflyer" element={<AflvBonusPage />} />
                       <Route path="tracker" element={<Tracker />} />
                       <Route path="academy" element={<Academy />} />

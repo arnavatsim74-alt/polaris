@@ -75,9 +75,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     });
   }, [isAdmin, isCheckingRecruitmentAccess, isLoading, isPilotLoading, location.pathname, pilot, redirectTarget, requireAdmin, user]);
 
-  if (isLoading || isCheckingRecruitmentAccess) return null;
-
-  if (!pilot && isPilotLoading) return null;
+  if (isLoading || isPilotLoading || isCheckingRecruitmentAccess) return null;
 
   if (redirectTarget === "/auth") {
     return <Navigate to="/auth" state={{ from: location }} replace />;

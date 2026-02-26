@@ -297,35 +297,53 @@ export default function AdminRoutes() {
     }
   };
 
+  const isAuthError = (error: unknown): boolean => {
+    const err = error as { code?: string; message?: string } | null;
+    if (!err) return false;
+    const errorStr = JSON.stringify(err).toLowerCase();
+    return (
+      err?.code === 'PGRST116' ||
+      err?.code === 'PGRST301' ||
+      err?.code === '42501' ||
+      errorStr.includes('jwt') ||
+      errorStr.includes('token') ||
+      errorStr.includes('unauthorized') ||
+      errorStr.includes('auth')
+    );
+  };
+
   const handleMappingComplete = async (mappedRoutes: ParsedRoute[]) => {
-    try {
-      const routesToInsert = mappedRoutes.map((route) => ({
-        route_number: route.route_number,
-        dep_icao: route.dep_icao,
-        arr_icao: route.arr_icao,
-        aircraft_icao: route.aircraft_icao || null,
-        livery: route.livery || null,
-        route_type: normalizeRouteType(route.route_type),
-        est_flight_time_minutes: route.est_flight_time_minutes || 0,
-        min_rank: route.min_rank || "cadet",
-        notes: route.notes || null,
-      }));
+    let refreshAttempted = false;
 
-      const isMissingLiveryColumnError = (error: unknown) => {
-        const err = error as { code?: string; message?: string } | null;
-        return err?.code === "PGRST204" && String(err?.message || "").includes("livery");
-      };
+    type RouteToInsert = {
+      route_number: string;
+      dep_icao: string;
+      arr_icao: string;
+      aircraft_icao: string | null;
+      livery: string | null;
+      route_type: "passenger" | "cargo";
+      est_flight_time_minutes: number;
+      min_rank: string;
+      notes: string | null;
+    };
 
-      const stripLiveryField = (batch: typeof routesToInsert) =>
-        batch.map(({ livery: _livery, ...rest }) => rest);
+    const isMissingLiveryColumnError = (error: unknown) => {
+      const err = error as { code?: string; message?: string } | null;
+      return err?.code === "PGRST204" && String(err?.message || "").includes("livery");
+    };
 
-      // Batch insert in chunks of 25 to avoid payload/timeout issues on large imports
-      const BATCH_SIZE = 25;
+    const stripLiveryField = (batch: RouteToInsert[]) =>
+      batch.map(({ livery: _livery, ...rest }) => rest);
+
+    let warnedAboutMissingLiveryColumn = false;
+
+    const attemptInsert = async (routes: RouteToInsert[], retryAfterRefresh = false): Promise<{ imported: number; failedBatches: number }> => {
       let imported = 0;
       let failedBatches = 0;
-      let warnedAboutMissingLiveryColumn = false;
-      for (let i = 0; i < routesToInsert.length; i += BATCH_SIZE) {
-        const batch = routesToInsert.slice(i, i + BATCH_SIZE);
+      const BATCH_SIZE = 25;
+
+      for (let i = 0; i < routes.length; i += BATCH_SIZE) {
+        const batch = routes.slice(i, i + BATCH_SIZE);
         try {
           let { error } = await supabase.from("routes").insert(batch);
 
@@ -340,6 +358,13 @@ export default function AdminRoutes() {
           }
 
           if (error) {
+            if (isAuthError(error) && !refreshAttempted && !retryAfterRefresh) {
+              refreshAttempted = true;
+              const { error: refreshError } = await supabase.auth.refreshSession();
+              if (!refreshError) {
+                return attemptInsert(routes, true);
+              }
+            }
             console.error(`Batch ${i / BATCH_SIZE + 1} failed:`, error);
             failedBatches++;
             continue;
@@ -347,13 +372,38 @@ export default function AdminRoutes() {
 
           imported += batch.length;
         } catch (batchError) {
+          if (isAuthError(batchError) && !refreshAttempted && !retryAfterRefresh) {
+            refreshAttempted = true;
+            const { error: refreshError } = await supabase.auth.refreshSession();
+            if (!refreshError) {
+              return attemptInsert(routes, true);
+            }
+          }
           console.error(`Batch ${i / BATCH_SIZE + 1} error:`, batchError);
           failedBatches++;
         }
-        if (imported % 100 === 0 || i + BATCH_SIZE >= routesToInsert.length) {
-          toast.info(`Importing... ${imported}/${routesToInsert.length}`);
+        if (imported % 100 === 0 || i + BATCH_SIZE >= routes.length) {
+          toast.info(`Importing... ${imported}/${routes.length}`);
         }
       }
+
+      return { imported, failedBatches };
+    };
+
+    try {
+      const routesToInsert: RouteToInsert[] = mappedRoutes.map((route) => ({
+        route_number: route.route_number,
+        dep_icao: route.dep_icao,
+        arr_icao: route.arr_icao,
+        aircraft_icao: route.aircraft_icao || null,
+        livery: route.livery || null,
+        route_type: normalizeRouteType(route.route_type),
+        est_flight_time_minutes: route.est_flight_time_minutes || 0,
+        min_rank: route.min_rank || "cadet",
+        notes: route.notes || null,
+      }));
+
+      const { imported, failedBatches } = await attemptInsert(routesToInsert);
 
       queryClient.invalidateQueries({ queryKey: ["admin-routes"] });
       
@@ -366,6 +416,12 @@ export default function AdminRoutes() {
       setParsedRoutes([]);
     } catch (error) {
       console.error(error);
+      if (isAuthError(error)) {
+        toast.error("Session expired. Please log in again.");
+        await supabase.auth.signOut();
+        window.location.href = "/auth";
+        return;
+      }
       toast.error("Failed to import routes");
     }
   };

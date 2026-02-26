@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -75,7 +75,10 @@ export default function FilePirep() {
   const { data: aircraft } = useQuery({
     queryKey: ["aircraft"],
     queryFn: async () => {
-      const { data } = await supabase.from("aircraft").select("*").order("name");
+      const { data } = await supabase
+        .from("aircraft")
+        .select("id,icao_code,name,livery,min_rank")
+        .order("name");
       return data || [];
     },
   });
@@ -123,16 +126,20 @@ export default function FilePirep() {
     if (!list) return [];
     const seen = new Set<string>();
     return list.filter(ac => {
-      if (seen.has(ac.icao_code)) return false;
-      seen.add(ac.icao_code);
+      const icaoCode = String(ac.icao_code || "").trim().toUpperCase();
+      if (!icaoCode || seen.has(icaoCode)) return false;
+      seen.add(icaoCode);
       return true;
     });
   };
 
-  const availableAircraft = getUniqueAircraft(
-    (!isEventOrRotw && !showAllAircraft && unlockedAircraftIcaos)
-      ? aircraft?.filter(ac => unlockedAircraftIcaos.includes(ac.icao_code.toUpperCase()))
-      : aircraft
+  const availableAircraft = useMemo(
+    () => getUniqueAircraft(
+      (!isEventOrRotw && !showAllAircraft && unlockedAircraftIcaos)
+        ? aircraft?.filter(ac => unlockedAircraftIcaos.includes(String(ac.icao_code || "").toUpperCase()))
+        : aircraft
+    ),
+    [aircraft, isEventOrRotw, showAllAircraft, unlockedAircraftIcaos]
   );
 
   const { data: multipliers } = useQuery({
@@ -330,7 +337,7 @@ export default function FilePirep() {
                     <SelectTrigger><SelectValue placeholder="Select aircraft" /></SelectTrigger>
                     <SelectContent>
                       {availableAircraft?.map((ac) => (
-                        <SelectItem key={ac.id} value={ac.icao_code}>
+                        <SelectItem key={ac.icao_code} value={String(ac.icao_code).toUpperCase()}>
                           {ac.name}{ac.livery ? ` (${ac.livery})` : ""}
                         </SelectItem>
                       ))}

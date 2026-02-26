@@ -127,7 +127,7 @@ export default function ProfileSettings() {
   const saveIfcUsername = async () => {
     if (!pilot?.id) return;
 
-    const normalizedIfcId = ifcUserId.trim();
+    const normalizedIfcUsername = ifcUsername.trim().replace(/^@+/, "");
 
     setIsSavingIfc(true);
     const { error } = await supabase

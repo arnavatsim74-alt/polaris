@@ -98,6 +98,29 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
     return map;
   }, [aircraft]);
 
+  // Mappings state
+  const [aircraftMappings, setAircraftMappings] = useState<Record<string, { icao: string; livery: string }>>({});
+  const [rankMappings, setRankMappings] = useState<Record<string, string>>({});
+  const [openAircraftSelector, setOpenAircraftSelector] = useState<string | null>(null);
+
+  // Fetch aircraft from database
+  const { data: aircraft } = useQuery({
+    queryKey: ["aircraft-for-mapping"],
+    queryFn: async () => {
+      const { data } = await supabase.from("aircraft").select("*").order("name");
+      return data || [];
+    },
+  });
+
+  // Fetch ranks from database
+  const { data: rankOptions } = useQuery({
+    queryKey: ["rank-configs-for-mapping"],
+    queryFn: async () => {
+      const { data } = await supabase.from("rank_configs").select("name, label").eq("is_active", true).order("order_index");
+      return (data || []).map(r => ({ value: r.name, label: r.label }));
+    },
+  });
+
   const handleAircraftChange = (csvString: string, icaoCode: string) => {
     setAircraftMappings((prev) => ({
       ...prev,
@@ -182,18 +205,52 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
               return (
                 <div key={csvString} className="space-y-2 p-3 bg-muted/50 rounded-lg">
                   <Label className="font-medium">"{csvString}"</Label>
-
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between"
-                    onClick={() => setActiveAircraftCsv(csvString)}
+                  
+                  <Popover
+                    open={openAircraftSelector === csvString}
+                    onOpenChange={(open) => setOpenAircraftSelector(open ? csvString : null)}
                   >
-                    {selectedIcao
-                      ? `${aircraftByIcao[selectedIcao]?.name || selectedIcao} (${selectedIcao})`
-                      : "Select aircraft type"}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between"
+                      >
+                        {selectedIcao 
+                          ? `${aircraftByIcao[selectedIcao]?.name || selectedIcao} (${selectedIcao})`
+                          : "Select aircraft type"
+                        }
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[400px]" side="bottom" align="start">
+                      {openAircraftSelector === csvString && (
+                        <Command>
+                          <CommandInput placeholder="Search aircraft..." />
+                          <CommandList>
+                            <CommandEmpty>No aircraft found.</CommandEmpty>
+                            <CommandGroup>
+                              {uniqueIcaoCodes.map((icao) => (
+                                <CommandItem
+                                  key={icao}
+                                  value={`${icao} ${aircraftByIcao[icao]?.name || ""}`}
+                                  onSelect={() => {
+                                    handleAircraftChange(csvString, icao);
+                                    setOpenAircraftSelector(null);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${selectedIcao === icao ? "opacity-100" : "opacity-0"}`}
+                                  />
+                                  {aircraftByIcao[icao]?.name || icao} ({icao})
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                  
                   {selectedIcao && liveries.length > 0 && (
                     <Select
                       value={aircraftMappings[csvString]?.livery || ""}

@@ -37,7 +37,7 @@ export function AppLayout() {
               </div>
               <a href={VACOMPANY_URL} target="_blank" rel="noopener noreferrer" aria-label="Visit VACompany">
                 <img
-                  src={headerLogo}
+                  src={vacompanyLogo}
                   alt="VA Logo"
                   className="h-8 w-auto object-contain opacity-80 invert dark:invert-0"
                 />

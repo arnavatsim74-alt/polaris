@@ -117,15 +117,40 @@ export default function AdminRoutes() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from("routes").delete().in("id", ids);
-      if (error) throw error;
+      if (!ids || ids.length === 0) {
+        throw new Error("No IDs provided");
+      }
+      const validIds = ids.filter(id => id && id.length > 0);
+      if (validIds.length === 0) {
+        throw new Error("No valid IDs provided");
+      }
+      console.log("Bulk deleting IDs:", validIds);
+      
+      let { error } = await supabase.from("routes").delete().in("id", validIds);
+      
+      if (error) {
+        console.error("Bulk delete error, trying individual deletes:", error);
+        let deletedCount = 0;
+        for (const id of validIds) {
+          const { error: singleError } = await supabase.from("routes").delete().eq("id", id);
+          if (!singleError) deletedCount++;
+        }
+        if (deletedCount === 0) {
+          throw new Error("All deletes failed");
+        }
+        return deletedCount;
+      }
+      return validIds.length;
     },
-    onSuccess: () => {
+    onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["admin-routes"] });
       setSelectedRouteIds([]);
-      toast.success("Selected routes deleted");
+      toast.success(`${count} routes deleted`);
     },
-    onError: () => toast.error("Failed to bulk delete routes"),
+    onError: (error: Error) => {
+      console.error("Bulk delete failed:", error);
+      toast.error(`Failed to delete routes: ${error.message}`);
+    },
   });
 
   // Parse delimited line respecting quoted fields

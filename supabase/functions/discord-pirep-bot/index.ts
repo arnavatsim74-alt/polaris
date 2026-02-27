@@ -997,7 +997,7 @@ const handleSubmitCallsignModal = async (body: any, token: string) => {
   if (!discordUserId) return ephemeralReply("Missing Discord user context.");
 
   const preferredPid = readModalInput(body, "preferred_callsign").toUpperCase().trim();
-  if (!/^LATV[A-Z0-9]{3}$/.test(preferredPid)) return ephemeralReply("Invalid format. Use LATVXXX (letters/numbers).");
+  if (!preferredPid) return ephemeralReply("Please enter a callsign.");
 
   const email = readModalInput(body, "contact_email").trim();
   const { data, error } = await supabase.rpc("set_recruitment_callsign_details", { p_token: token, p_pid: preferredPid, p_email: email || null });

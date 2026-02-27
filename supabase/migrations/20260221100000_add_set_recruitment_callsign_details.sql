@@ -14,10 +14,6 @@ declare
 begin
   v_pid := upper(trim(p_pid));
 
-  if v_pid !~ '^AFLV[A-Z0-9]{3}$' then
-    raise exception 'Callsign must be in AFLVXXX format';
-  end if;
-
   select * into v_session
   from public.recruitment_exam_sessions
   where token = p_token

@@ -86,6 +86,7 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
   // Mappings state
   const [aircraftMappings, setAircraftMappings] = useState<Record<string, { icao: string; livery: string }>>({});
   const [rankMappings, setRankMappings] = useState<Record<string, string>>({});
+  const [openAircraftSelector, setOpenAircraftSelector] = useState<string | null>(null);
 
   // Fetch aircraft from database
   const { data: aircraft } = useQuery({
@@ -189,7 +190,10 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
                 <div key={csvString} className="space-y-2 p-3 bg-muted/50 rounded-lg">
                   <Label className="font-medium">"{csvString}"</Label>
                   
-                  <Popover>
+                  <Popover
+                    open={openAircraftSelector === csvString}
+                    onOpenChange={(open) => setOpenAircraftSelector(open ? csvString : null)}
+                  >
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -203,26 +207,31 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="p-0 w-[400px]" side="bottom" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search aircraft..." />
-                        <CommandList>
-                          <CommandEmpty>No aircraft found.</CommandEmpty>
-                          <CommandGroup>
-                            {uniqueIcaoCodes.map((icao) => (
-                              <CommandItem
-                                key={icao}
-                                value={`${icao} ${aircraftByIcao[icao]?.name || ""}`}
-                                onSelect={() => handleAircraftChange(csvString, icao)}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 ${selectedIcao === icao ? "opacity-100" : "opacity-0"}`}
-                                />
-                                {aircraftByIcao[icao]?.name || icao} ({icao})
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
+                      {openAircraftSelector === csvString && (
+                        <Command>
+                          <CommandInput placeholder="Search aircraft..." />
+                          <CommandList>
+                            <CommandEmpty>No aircraft found.</CommandEmpty>
+                            <CommandGroup>
+                              {uniqueIcaoCodes.map((icao) => (
+                                <CommandItem
+                                  key={icao}
+                                  value={`${icao} ${aircraftByIcao[icao]?.name || ""}`}
+                                  onSelect={() => {
+                                    handleAircraftChange(csvString, icao);
+                                    setOpenAircraftSelector(null);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${selectedIcao === icao ? "opacity-100" : "opacity-0"}`}
+                                  />
+                                  {aircraftByIcao[icao]?.name || icao} ({icao})
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      )}
                     </PopoverContent>
                   </Popover>
                   

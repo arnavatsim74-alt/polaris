@@ -73,7 +73,7 @@ const RouteScopedErrorBoundary = ({ children }: { children: ReactNode }) => {
 const App = () => (
   <AppErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="dark" storageKey="aeroflot-va-theme">
+      <ThemeProvider defaultTheme="dark" storageKey="latour-va-theme">
         <TooltipProvider>
           <Toaster />
           <Sonner />

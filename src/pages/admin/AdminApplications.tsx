@@ -296,7 +296,7 @@ export default function AdminApplications() {
               <Input
                 value={assignedPid}
                 onChange={(e) => setAssignedPid(e.target.value.toUpperCase())}
-                placeholder="LATV0001"
+                placeholder="AFLV0001"
               />
             </div>
           </div>

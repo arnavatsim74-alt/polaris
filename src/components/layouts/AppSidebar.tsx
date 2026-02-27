@@ -104,7 +104,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className={cn("flex items-center gap-3 px-3 py-2", isCollapsed && "justify-center")}>
-          <img src={logoSrc} alt="LATOUR Virtual" className={cn("w-auto object-contain", isCollapsed ? "h-8" : "h-10")} />
+          <img src={logoSrc} alt="Koreanair Virtual" className={cn("w-auto object-contain", isCollapsed ? "h-8" : "h-10")} />
         </div>
       </SidebarHeader>
 

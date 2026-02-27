@@ -37,7 +37,7 @@ function generateCardNumber() {
   return segments.join(" ");
 }
 
-export default function LatourBonus() {
+export default function AflvBonus() {
   const { pilot } = useAuth();
   const queryClient = useQueryClient();
   const hours = pilot?.total_hours ?? 0;
@@ -94,8 +94,8 @@ export default function LatourBonus() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">LATV Bonus</h1>
-        <p className="text-muted-foreground">LATOUR Virtual Frequent Flyer Program</p>
+        <h1 className="text-3xl font-bold">AFLV Bonus</h1>
+        <p className="text-muted-foreground">Aeroflot Virtual Group Frequent Flyer Program</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">

@@ -288,7 +288,7 @@ export default function AdminApplications() {
               <p><strong>IFC Trust Level:</strong> {selectedApp?.ifc_trust_level || "N/A"}</p>
               <p><strong>Age Range:</strong> {selectedApp?.age_range || "N/A"}</p>
               <p><strong>Other VA/VO:</strong> {selectedApp?.other_va_membership || "N/A"}</p>
-              <p><strong>Heard About LATOUR:</strong> {selectedApp?.hear_about_aflv || "N/A"}</p>
+              <p><strong>Heard About AFLV:</strong> {selectedApp?.hear_about_aflv || "N/A"}</p>
               {selectedApp?.ifc_profile_url && <p><strong>IFC Username:</strong> {selectedApp?.ifc_profile_url}</p>}
             </div>
             <div className="space-y-2">
@@ -296,7 +296,7 @@ export default function AdminApplications() {
               <Input
                 value={assignedPid}
                 onChange={(e) => setAssignedPid(e.target.value.toUpperCase())}
-                placeholder="LATV0001"
+                placeholder="AFLV0001"
               />
             </div>
           </div>
@@ -391,12 +391,12 @@ export default function AdminApplications() {
                 <p className="font-medium break-all">{selectedApp?.ifc_profile_url || "N/A"}</p>
               </div>
               <div className="col-span-2">
-                <p className="text-muted-foreground">Where did you hear about LATOUR?</p>
+                <p className="text-muted-foreground">Where did you hear about AFLV?</p>
                 <p className="font-medium">{selectedApp?.hear_about_aflv || "N/A"}</p>
               </div>
             </div>
             <div>
-              <p className="text-muted-foreground text-sm mb-1">Why they want to join LATOUR</p>
+              <p className="text-muted-foreground text-sm mb-1">Why they want to join AFLV</p>
               <p className="text-sm bg-muted p-3 rounded-lg">{selectedApp?.reason_for_joining}</p>
             </div>
             {selectedApp?.status === "rejected" && selectedApp?.rejection_reason && (

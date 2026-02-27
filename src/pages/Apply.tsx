@@ -26,8 +26,8 @@ const applicationSchema = z.object({
   ageRange: z.enum(["13-16", "17-21", "22-27", "28-34", "35-41", "42-50", "51-60", "Above"]),
   ifcProfileUrl: z.string().min(2, "IFC username is required"),
   otherVaMembership: z.string().min(2, "Please answer if you are a member of another VA or VO"),
-  whyJoinLatour: z.string().min(10, "Please share why you want to join LATOUR"),
-  hearAboutLatour: z.string().min(2, "Please share where you heard about LATOUR"),
+  whyJoinAflv: z.string().min(10, "Please share why you want to join AFLV"),
+  hearAboutAflv: z.string().min(2, "Please share where you heard about AFLV"),
 });
 
 type ApplicationStatus = "idle" | "pending" | "approved" | "rejected";
@@ -44,8 +44,8 @@ export default function ApplyPage() {
   const [ageRange, setAgeRange] = useState("13-16");
   const [ifcProfileUrl, setIfcProfileUrl] = useState("");
   const [otherVaMembership, setOtherVaMembership] = useState("");
-  const [whyJoinLatour, setWhyJoinLatour] = useState("");
-  const [hearAboutLatour, setHearAboutLatour] = useState("");
+  const [whyJoinAflv, setWhyJoinAflv] = useState("");
+  const [hearAboutAflv, setHearAboutAflv] = useState("");
   
   const [isLoading, setIsLoading] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus>("idle");
@@ -113,8 +113,8 @@ export default function ApplyPage() {
       ageRange,
       ifcProfileUrl,
       otherVaMembership,
-      whyJoinLatour,
-      hearAboutLatour,
+      whyJoinAflv,
+      hearAboutAflv,
     });
 
     if (!validation.success) {
@@ -169,7 +169,7 @@ export default function ApplyPage() {
         ivao_id: null,
         experience_level: ifGrade,
         preferred_simulator: isIfatc,
-        reason_for_joining: whyJoinLatour,
+        reason_for_joining: whyJoinAflv,
         discord_username: normalizedDiscordUsername,
         discord_user_id: discordUserId,
         if_grade: ifGrade,
@@ -178,7 +178,7 @@ export default function ApplyPage() {
         age_range: ageRange,
         ifc_profile_url: ifcProfileUrl.trim().replace(/^@+/, "") || null,
         other_va_membership: otherVaMembership,
-        hear_about_aflv: hearAboutLatour,
+        hear_about_aflv: hearAboutAflv,
       }, { onConflict: "user_id" });
 
       if (appError) {
@@ -258,9 +258,9 @@ export default function ApplyPage() {
           <Card className="w-full max-w-2xl">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4">
-              <img src={aeroflotLogo} alt="LATOUR Virtual" className="h-12 w-auto object-contain" />
+              <img src={aeroflotLogo} alt="Aeroflot Virtual Group" className="h-12 w-auto object-contain" />
             </div>
-            <CardTitle className="text-2xl">Join LATOUR Virtual</CardTitle>
+            <CardTitle className="text-2xl">Join Aeroflot Virtual Group</CardTitle>
             <CardDescription>
               Complete this form to apply for a pilot position with our virtual airline on Infinite Flight
             </CardDescription>
@@ -382,10 +382,10 @@ export default function ApplyPage() {
                     <Input id="otherVaMembership" value={otherVaMembership} onChange={(e) => setOtherVaMembership(e.target.value)} disabled={isLoading} required />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="whyJoinLatour">Why you want to join LATOUR? *</Label>
-                    <Input id="whyJoinLatour" value={whyJoinLatour} onChange={(e) => setWhyJoinLatour(e.target.value)} disabled={isLoading} required />
-                    <Label htmlFor="hearAboutLatour">Where did you hear about LATOUR? *</Label>
-                    <Input id="hearAboutLatour" value={hearAboutLatour} onChange={(e) => setHearAboutLatour(e.target.value)} disabled={isLoading} required />
+                    <Label htmlFor="whyJoinAflv">Why you want to join AFLV? *</Label>
+                    <Input id="whyJoinAflv" value={whyJoinAflv} onChange={(e) => setWhyJoinAflv(e.target.value)} disabled={isLoading} required />
+                    <Label htmlFor="hearAboutAflv">Where did you hear about AFLV? *</Label>
+                    <Input id="hearAboutAflv" value={hearAboutAflv} onChange={(e) => setHearAboutAflv(e.target.value)} disabled={isLoading} required />
                   </div>
                 </div>
               </div>

@@ -22,7 +22,7 @@ const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
 const Events = lazy(() => import("@/pages/Events"));
 const Details = lazy(() => import("@/pages/Details"));
 const Challenges = lazy(() => import("@/pages/Challenges"));
-const AflvBonusPage = lazy(() => import("@/pages/LatourBonus"));
+const AflvBonusPage = lazy(() => import("@/pages/AflvBonus"));
 const Tracker = lazy(() => import("@/pages/Tracker"));
 const AdminPireps = lazy(() => import("@/pages/admin/AdminPireps"));
 const AdminRoutes = lazy(() => import("@/pages/admin/AdminRoutes"));
@@ -96,6 +96,7 @@ const App = () => (
                       <Route path="details" element={<Details />} />
                       <Route path="challenges" element={<Challenges />} />
                       <Route path="latourbonus" element={<AflvBonusPage />} />
+                      <Route path="aflvbonus" element={<AflvBonusPage />} />
                       <Route path="frequentflyer" element={<AflvBonusPage />} />
                       <Route path="tracker" element={<Tracker />} />
                       <Route path="academy" element={<Academy />} />

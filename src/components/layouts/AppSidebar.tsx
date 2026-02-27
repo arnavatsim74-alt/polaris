@@ -1,6 +1,6 @@
 import { useLocation, Link } from "react-router-dom";
 import {
-  LayoutDashboard, FileText, History, Route, Trophy, Calendar, Info, Shield, Users, Star, Plane, Award, Zap, Settings, AlertTriangle, Target, Megaphone, CreditCard, Link as LinkIcon, Globe, MessageCircle, ExternalLink, BookOpen, HelpCircle, MapPin, Activity,
+  LayoutDashboard, FileText, History, Route, Trophy, Calendar, Info, Shield, Users, Star, Plane, Award, Zap, Settings, AlertTriangle, Target, Megaphone, Link as LinkIcon, Globe, MessageCircle, ExternalLink, BookOpen, HelpCircle, MapPin, Activity,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -27,7 +27,6 @@ const pilotNavItems = [
   { title: "Leaderboard", url: "/leaderboard", icon: Trophy },
   { title: "Events", url: "/events", icon: Calendar },
   { title: "Details", url: "/details", icon: Info },
-  { title: "LATOUR Bonus", url: "/latourbonus", icon: CreditCard },
   { title: "Tracker", url: "/tracker", icon: MapPin },
   { title: "Academy", url: "/academy", icon: BookOpen },
   { title: "Activity", url: "/activity", icon: Activity },
@@ -49,7 +48,6 @@ const adminNavItems = [
   { title: "Settings", url: "/admin/settings", icon: Settings },
   { title: "Sidebar Links", url: "/admin/sidebar-links", icon: LinkIcon },
   { title: "Academy", url: "/admin/academy", icon: BookOpen },
-  { title: "Bonus Tiers", url: "/admin/bonus-tiers", icon: CreditCard },
   { title: "Activity", url: "/admin/activity", icon: Activity },
 ];
 

@@ -22,7 +22,6 @@ const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
 const Events = lazy(() => import("@/pages/Events"));
 const Details = lazy(() => import("@/pages/Details"));
 const Challenges = lazy(() => import("@/pages/Challenges"));
-const AflvBonusPage = lazy(() => import("@/pages/LatourBonus"));
 const Tracker = lazy(() => import("@/pages/Tracker"));
 const AdminPireps = lazy(() => import("@/pages/admin/AdminPireps"));
 const AdminRoutes = lazy(() => import("@/pages/admin/AdminRoutes"));
@@ -39,7 +38,6 @@ const AdminChallenges = lazy(() => import("@/pages/admin/AdminChallenges"));
 const AdminAnnouncements = lazy(() => import("@/pages/admin/AdminAnnouncements"));
 const AdminSidebarLinks = lazy(() => import("@/pages/admin/AdminSidebarLinks"));
 const AdminAcademy = lazy(() => import("@/pages/admin/AdminAcademy"));
-const AdminBonusTiers = lazy(() => import("@/pages/admin/AdminBonusTiers"));
 const AdminActivity = lazy(() => import("@/pages/admin/AdminActivity"));
 const Academy = lazy(() => import("@/pages/Academy"));
 const AcademyCourse = lazy(() => import("@/pages/AcademyCourse"));
@@ -95,8 +93,6 @@ const App = () => (
                       <Route path="events" element={<Events />} />
                       <Route path="details" element={<Details />} />
                       <Route path="challenges" element={<Challenges />} />
-                      <Route path="latourbonus" element={<AflvBonusPage />} />
-                      <Route path="frequentflyer" element={<AflvBonusPage />} />
                       <Route path="tracker" element={<Tracker />} />
                       <Route path="academy" element={<Academy />} />
                       <Route path="academy/course/:courseId" element={<AcademyCourse />} />
@@ -117,7 +113,6 @@ const App = () => (
                       <Route path="admin/announcements" element={<AdminAnnouncements />} />
                       <Route path="admin/sidebar-links" element={<AdminSidebarLinks />} />
                       <Route path="admin/academy" element={<AdminAcademy />} />
-                      <Route path="admin/bonus-tiers" element={<AdminBonusTiers />} />
                       <Route path="admin/activity" element={<AdminActivity />} />
                     </Route>
                     <Route path="*" element={<NotFound />} />

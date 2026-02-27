@@ -109,7 +109,6 @@ export default function AdminMembers() {
       await supabase.from("event_registrations").delete().eq("pilot_id", pilot.id);
       await supabase.from("challenge_completions").delete().eq("pilot_id", pilot.id);
       await supabase.from("pilot_streaks").delete().eq("pilot_id", pilot.id);
-      await supabase.from("pilot_bonus_cards").delete().eq("pilot_id", pilot.id);
       await supabase.from("user_roles").delete().eq("user_id", pilot.user_id);
       
       const { error } = await supabase.from("pilots").delete().eq("id", pilot.id);

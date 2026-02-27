@@ -15,11 +15,8 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   const [isCheckingRecruitmentAccess, setIsCheckingRecruitmentAccess] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
-
     const checkRecruitmentExamAccess = async () => {
       if (!user || pilot) return;
-      
       const isExamPath = location.pathname.startsWith("/academy/exam/");
       if (!isExamPath) {
         setHasRecruitmentExamAccess(false);
@@ -33,34 +30,15 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
       }
 
       setIsCheckingRecruitmentAccess(true);
-      try {
-        const { data, error } = await supabase.rpc("can_access_recruitment_exam", {
-          p_token: token,
-          p_user_id: user.id,
-        });
-        
-        if (!isMounted) return;
-        
-        if (error) {
-          console.error("Recruitment access check failed:", error);
-          setHasRecruitmentExamAccess(false);
-        } else {
-          setHasRecruitmentExamAccess(!!data);
-        }
-      } catch (err) {
-        if (!isMounted) return;
-        console.error("Error checking recruitment access:", err);
-        setHasRecruitmentExamAccess(false);
-      } finally {
-        if (isMounted) {
-          setIsCheckingRecruitmentAccess(false);
-        }
-      }
+      const { data } = await supabase.rpc("can_access_recruitment_exam", {
+        p_token: token,
+        p_user_id: user.id,
+      });
+      setHasRecruitmentExamAccess(!!data);
+      setIsCheckingRecruitmentAccess(false);
     };
 
     checkRecruitmentExamAccess();
-
-    return () => { isMounted = false; };
   }, [location.pathname, location.search, pilot, user]);
 
   const redirectTarget = useMemo(() => {
@@ -80,6 +58,22 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
     return null;
   }, [hasRecruitmentExamAccess, isAdmin, isCheckingRecruitmentAccess, isLoading, isPilotLoading, location.pathname, pilot, requireAdmin, user]);
+
+  useEffect(() => {
+    if (!redirectTarget) return;
+
+    console.info("[ProtectedRoute] Redirecting", {
+      from: location.pathname,
+      to: redirectTarget,
+      isLoading,
+      isPilotLoading,
+      isCheckingRecruitmentAccess,
+      hasUser: !!user,
+      hasPilot: !!pilot,
+      isAdmin,
+      requireAdmin,
+    });
+  }, [isAdmin, isCheckingRecruitmentAccess, isLoading, isPilotLoading, location.pathname, pilot, redirectTarget, requireAdmin, user]);
 
   if (isLoading || isPilotLoading || isCheckingRecruitmentAccess) return null;
 

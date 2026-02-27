@@ -172,28 +172,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    let isMounted = true;
-    let abortController: AbortController | null = null;
-
-    const fetchPilotWithSetup = async (userId: string, session: Session) => {
-      if (abortController) abortController.abort();
-      abortController = new AbortController();
-      
-      setIsPilotLoading(true);
-      try {
-        await fetchPilotData(userId, session.user);
-        await tryAdminSetup(session);
-      } catch (error) {
-        if ((error as Error).name !== 'AbortError') {
-          console.error("Error fetching pilot data:", error);
-        }
-      }
-    };
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (!isMounted) return;
-
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -201,7 +181,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setPilot(null);
           setIsAdmin(false);
           setIsPilotLoading(false);
-          if (abortController) abortController.abort();
           return;
         }
 
@@ -209,25 +188,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // Only fetch if this is a new user
-        if (lastLoadedUserIdRef.current !== session.user.id) {
-          lastLoadedUserIdRef.current = session.user.id;
-          fetchPilotWithSetup(session.user.id, session);
+        if (session?.user) {
+          setIsPilotLoading(true);
+          setTimeout(async () => {
+            await fetchPilotData(session.user.id, session.user);
+            await tryAdminSetup(session);
+          }, 0);
         }
+
+        if (event === "SIGNED_IN" && lastLoadedUserIdRef.current === session.user.id) {
+          return;
+        }
+
+        setIsPilotLoading(true);
+        setTimeout(async () => {
+          await fetchPilotData(session.user.id, session.user);
+          lastLoadedUserIdRef.current = session.user.id;
+          await tryAdminSetup(session);
+        }, 0);
       }
     );
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!isMounted) return;
-
       setSession(session);
       setUser(session?.user ?? null);
-      
       if (session?.user) {
-        if (lastLoadedUserIdRef.current !== session.user.id) {
-          lastLoadedUserIdRef.current = session.user.id;
-          await fetchPilotWithSetup(session.user.id, session);
-        }
+        setIsPilotLoading(true);
+        await fetchPilotData(session.user.id, session.user);
+        lastLoadedUserIdRef.current = session.user.id;
+        await tryAdminSetup(session);
       } else {
         setPilot(null);
         setIsAdmin(false);
@@ -236,11 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
-    return () => {
-      isMounted = false;
-      if (abortController) abortController.abort();
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {

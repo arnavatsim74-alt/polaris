@@ -126,21 +126,20 @@ export default function AdminRoutes() {
       }
       console.log("Bulk deleting IDs:", validIds);
       
-      let { error } = await supabase.from("routes").delete().in("id", validIds);
-      
-      if (error) {
-        console.error("Bulk delete error, trying individual deletes:", error);
-        let deletedCount = 0;
-        for (const id of validIds) {
-          const { error: singleError } = await supabase.from("routes").delete().eq("id", id);
-          if (!singleError) deletedCount++;
+      let deletedCount = 0;
+      for (const id of validIds) {
+        const { error } = await supabase.from("routes").delete().eq("id", id);
+        if (!error) {
+          deletedCount++;
+        } else {
+          console.error(`Failed to delete route ${id}:`, error);
         }
-        if (deletedCount === 0) {
-          throw new Error("All deletes failed");
-        }
-        return deletedCount;
       }
-      return validIds.length;
+      
+      if (deletedCount === 0) {
+        throw new Error("Failed to delete any routes");
+      }
+      return deletedCount;
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["admin-routes"] });

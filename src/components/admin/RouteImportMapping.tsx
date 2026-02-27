@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, Plane, Award } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CheckCircle, Plane, Award, ChevronsUpDown, Check } from "lucide-react";
 import { splitRouteAircraft } from "@/lib/routeAircraft";
 
 interface ParsedRoute {
@@ -46,16 +48,40 @@ const normalizeRank = (rank: string): string | null => {
 };
 
 export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: RouteImportMappingProps) {
-  // Extract unique aircraft strings from CSV, supporting multi-aircraft values per route
-  const uniqueAircraftStrings = [...new Set(parsedRoutes.flatMap((r) => splitRouteAircraft(r.aircraft_icao)))];
+  // Memoize unique aircraft strings and ranks
+  const uniqueAircraftStrings = useMemo(() => 
+    [...new Set(parsedRoutes.flatMap((r) => splitRouteAircraft(r.aircraft_icao)))],
+    [parsedRoutes]
+  );
   
-  // Extract unique rank strings that couldn't be auto-mapped
-  const uniqueRanks = [...new Set(
+  const uniqueRanks = useMemo(() => [...new Set(
     parsedRoutes
       .map(r => r.min_rank)
       .filter(Boolean)
       .filter(rank => !normalizeRank(rank!))
-  )] as string[];
+  )] as string[], [parsedRoutes]);
+
+  // Memoize unique ICAO codes (deduplicated)
+  const uniqueIcaoCodes = useMemo(() => {
+    const codes = aircraft?.map(a => a.icao_code).filter(Boolean) || [];
+    return [...new Set(codes)] as string[];
+  }, [aircraft]);
+
+  // Memoize aircraft lookup map
+  const aircraftByIcao = useMemo(() => {
+    const map: Record<string, { name: string; liveries: string[] }> = {};
+    aircraft?.forEach(ac => {
+      if (ac.icao_code) {
+        if (!map[ac.icao_code]) {
+          map[ac.icao_code] = { name: ac.name || ac.icao_code, liveries: [] };
+        }
+        if (ac.livery && !map[ac.icao_code].liveries.includes(ac.livery)) {
+          map[ac.icao_code].liveries.push(ac.livery);
+        }
+      }
+    });
+    return map;
+  }, [aircraft]);
 
   // Mappings state
   const [aircraftMappings, setAircraftMappings] = useState<Record<string, { icao: string; livery: string }>>({});
@@ -78,17 +104,6 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
       return (data || []).map(r => ({ value: r.name, label: r.label }));
     },
   });
-
-  // Get unique liveries for an aircraft ICAO
-  const getLiveriesForAircraft = (icaoCode: string) => {
-    const ac = aircraft?.filter(a => a.icao_code === icaoCode) || [];
-    const liveries = [...new Set(ac.map(a => a.livery).filter(Boolean))];
-    return liveries as string[];
-  };
-
-  const getUniqueIcaoCodes = () => {
-    return [...new Set(aircraft?.map(a => a.icao_code) || [])];
-  };
 
   const handleAircraftChange = (csvString: string, icaoCode: string) => {
     setAircraftMappings(prev => ({
@@ -167,29 +182,49 @@ export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: Route
             
             {uniqueAircraftStrings.map((csvString) => {
               const selectedIcao = aircraftMappings[csvString]?.icao;
-              const liveries = selectedIcao ? getLiveriesForAircraft(selectedIcao) : [];
+              const aircraftData = selectedIcao ? aircraftByIcao[selectedIcao] : null;
+              const liveries = aircraftData?.liveries || [];
               
               return (
                 <div key={csvString} className="space-y-2 p-3 bg-muted/50 rounded-lg">
                   <Label className="font-medium">"{csvString}"</Label>
-                  <Select
-                    value={selectedIcao || ""}
-                    onValueChange={(v) => handleAircraftChange(csvString, v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select aircraft type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getUniqueIcaoCodes().map((icao) => {
-                        const ac = aircraft?.find(a => a.icao_code === icao);
-                        return (
-                          <SelectItem key={icao} value={icao}>
-                            {ac?.name || icao} ({icao})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between"
+                      >
+                        {selectedIcao 
+                          ? `${aircraftByIcao[selectedIcao]?.name || selectedIcao} (${selectedIcao})`
+                          : "Select aircraft type"
+                        }
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[400px]" side="bottom" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search aircraft..." />
+                        <CommandList>
+                          <CommandEmpty>No aircraft found.</CommandEmpty>
+                          <CommandGroup>
+                            {uniqueIcaoCodes.map((icao) => (
+                              <CommandItem
+                                key={icao}
+                                value={`${icao} ${aircraftByIcao[icao]?.name || ""}`}
+                                onSelect={() => handleAircraftChange(csvString, icao)}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${selectedIcao === icao ? "opacity-100" : "opacity-0"}`}
+                                />
+                                {aircraftByIcao[icao]?.name || icao} ({icao})
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   
                   {selectedIcao && liveries.length > 0 && (
                     <Select

@@ -258,9 +258,9 @@ export default function ApplyPage() {
           <Card className="w-full max-w-2xl">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4">
-              <img src={aeroflotLogo} alt="LATOUR Virtual" className="h-12 w-auto object-contain" />
+              <img src={aeroflotLogo} alt="Koreanair Virtual" className="h-12 w-auto object-contain" />
             </div>
-            <CardTitle className="text-2xl">Join LATOUR Virtual</CardTitle>
+            <CardTitle className="text-2xl">Join Koreanair Virtual</CardTitle>
             <CardDescription>
               Complete this form to apply for a pilot position with our virtual airline on Infinite Flight
             </CardDescription>

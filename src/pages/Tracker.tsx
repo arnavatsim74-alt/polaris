@@ -21,7 +21,7 @@ export default function Tracker() {
       <iframe
         src={trackerUrl || DEFAULT_TRACKER_URL}
         className="w-full h-full border-0"
-        title="LATV Tracker"
+        title="KEVA Tracker"
         allow="fullscreen"
       />
     </div>

@@ -16,12 +16,14 @@ import { CalendarIcon, Loader2, Plane } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
 const defaultOperators = [
   "Aeroflot", "Azerbaijan Airlines", "Uzbekistan Airways", "Belavia",
   "S7 Airlines", "AirBridge Cargo", "Saudia", "Emirates", "Fly Dubai",
   "Emirates SkyCargo", "Aegean Airlines", "Qatar Airways",
   "SunCountry Airlines", "IndiGo", "Oman Air", "Others",
 ];
+
 export default function FilePirep() {
   const { pilot } = useAuth();
   const navigate = useNavigate();
@@ -30,6 +32,7 @@ export default function FilePirep() {
   const [depIcao, setDepIcao] = useState("");
   const [arrIcao, setArrIcao] = useState("");
   const [aircraftIcao, setAircraftIcao] = useState("");
+  const [selectedAircraftLabel, setSelectedAircraftLabel] = useState("");
   const [flightHours, setFlightHours] = useState("");
   const [flightDate, setFlightDate] = useState<Date | undefined>(new Date());
   const [selectedMultiplier, setSelectedMultiplier] = useState("1");
@@ -41,6 +44,7 @@ export default function FilePirep() {
   const [aircraftSearch, setAircraftSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isAcarsLoading, setIsAcarsLoading] = useState(false);
+
   // Pre-fill from URL params (from Routes / ROTW "File PIREP" buttons)
   useEffect(() => {
     const dep = searchParams.get("dep");
@@ -54,8 +58,10 @@ export default function FilePirep() {
     if (fn) setFlightNumber(fn);
     if (ft && (ft === "passenger" || ft === "cargo")) setFlightType(ft);
   }, [searchParams]);
+
   // Check if filing from event or ROTW (bypass aircraft restrictions)
   const isEventOrRotw = searchParams.has("event") || searchParams.has("rotw");
+
   // Fetch operators from site_settings (fallback to defaults)
   const { data: operators } = useQuery({
     queryKey: ["pirep-operators"],
@@ -67,6 +73,7 @@ export default function FilePirep() {
       return defaultOperators;
     },
   });
+
   const { data: aircraft } = useQuery({
     queryKey: ["aircraft"],
     queryFn: async () => {
@@ -77,6 +84,7 @@ export default function FilePirep() {
       return data || [];
     },
   });
+
   // Fetch rank configs for aircraft unlock restrictions
   const { data: rankConfigs } = useQuery({
     queryKey: ["rank-configs-all"],
@@ -85,10 +93,11 @@ export default function FilePirep() {
       return data || [];
     },
   });
+
   // Get unlocked aircraft for pilot's current rank
-  const unlockedAircraftIcaos = (() => {
+  const unlockedAircraftIcaos = useMemo(() => {
     if (!rankConfigs || !pilot?.current_rank) return null;
-    const pilotRank = rankConfigs.find(r => r.name === pilot.current_rank);
+    const pilotRank = rankConfigs.find((r) => r.name === pilot.current_rank);
     if (!pilotRank) return null;
     const unlocked = new Set<string>();
     for (const rank of rankConfigs) {
@@ -98,40 +107,49 @@ export default function FilePirep() {
       }
     }
     return unlocked.size > 0 ? Array.from(unlocked) : null;
-  })();
-  // Get unique aircraft by icao_code (deduplicate for the dropdown)
-  const getUniqueAircraft = (list: typeof aircraft) => {
-    if (!list) return [];
-    const seen = new Set<string>();
-    return list.filter(ac => {
-      const icaoCode = String(ac.icao_code || "").trim().toUpperCase();
-      if (!icaoCode || seen.has(icaoCode)) return false;
-      seen.add(icaoCode);
-      return true;
-    });
-  };
-  const availableAircraft = useMemo(
-    () => {
-      let filtered = getUniqueAircraft(
-        (!isEventOrRotw && !showAllAircraft && unlockedAircraftIcaos)
-          ? aircraft?.filter(ac => unlockedAircraftIcaos.includes(String(ac.icao_code || "").toUpperCase()))
-          : aircraft
+  }, [rankConfigs, pilot?.current_rank]);
+
+  // Build the full aircraft list for the dropdown.
+  // NOTE: We do NOT deduplicate by icao_code here — each aircraft row
+  // (including separate liveries) gets its own entry so pilots can select
+  // a specific livery. Deduplication was hiding valid aircraft options.
+  const availableAircraft = useMemo(() => {
+    if (!aircraft) return [];
+
+    // Determine base list — filtered by rank unlock or full list
+    let list = aircraft;
+    if (!isEventOrRotw && !showAllAircraft && unlockedAircraftIcaos) {
+      list = aircraft.filter((ac) =>
+        unlockedAircraftIcaos.includes(String(ac.icao_code || "").toUpperCase())
       );
-      
-      // Apply search filter
-      if (aircraftSearch.trim()) {
-        const search = aircraftSearch.toLowerCase();
-        filtered = filtered.filter(ac => 
-          String(ac.icao_code || "").toLowerCase().includes(search) ||
-          String(ac.name || "").toLowerCase().includes(search) ||
-          String(ac.livery || "").toLowerCase().includes(search)
-        );
+    }
+
+    // Apply search filter
+    if (aircraftSearch.trim()) {
+      const search = aircraftSearch.toLowerCase();
+      list = list.filter((ac) =>
+        String(ac.icao_code || "").toLowerCase().includes(search) ||
+        String(ac.name || "").toLowerCase().includes(search) ||
+        String(ac.livery || "").toLowerCase().includes(search)
+      );
+    }
+
+    return list;
+  }, [aircraft, isEventOrRotw, showAllAircraft, unlockedAircraftIcaos, aircraftSearch]);
+
+  // Pre-compute a label lookup map keyed by icao_code (for the trigger button display).
+  // This replaces the inline .find() call that was crashing on large lists.
+  const aircraftLabelMap = useMemo(() => {
+    if (!aircraft) return {} as Record<string, string>;
+    return aircraft.reduce((acc, ac) => {
+      const key = String(ac.icao_code || "").toUpperCase();
+      if (key && !acc[key]) {
+        acc[key] = ac.name || key;
       }
-      
-      return filtered;
-    },
-    [aircraft, isEventOrRotw, showAllAircraft, unlockedAircraftIcaos, aircraftSearch]
-  );
+      return acc;
+    }, {} as Record<string, string>);
+  }, [aircraft]);
+
   const { data: multipliers } = useQuery({
     queryKey: ["multiplier-configs"],
     queryFn: async () => {
@@ -143,7 +161,9 @@ export default function FilePirep() {
       return data || [];
     },
   });
+
   const currentMultiplierValue = parseFloat(selectedMultiplier) || 1;
+
   const handleLoadAcars = async () => {
     if (!pilot?.ifc_username) {
       toast.error("Set your IFC username in Profile Settings first.");
@@ -176,6 +196,7 @@ export default function FilePirep() {
       setIsAcarsLoading(false);
     }
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pilot?.id) { toast.error("Pilot profile not found"); return; }
@@ -245,6 +266,12 @@ export default function FilePirep() {
       setIsLoading(false);
     }
   };
+
+  // Build the trigger button label safely using the pre-computed map (no inline .find())
+  const triggerLabel = aircraftIcao
+    ? `${aircraftLabelMap[aircraftIcao] || aircraftIcao} (${aircraftIcao})`
+    : selectedAircraftLabel || "Select aircraft";
+
   return (
     <div className="max-w-2xl mx-auto">
       <Card>
@@ -262,7 +289,7 @@ export default function FilePirep() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <Button type="button" variant="outline" onClick={handleLoadAcars} disabled={isLoading || isAcarsLoading} className="w-full md:w-auto">
-              {(isAcarsLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isAcarsLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               ACARS
             </Button>
             <div className="space-y-4">
@@ -287,15 +314,15 @@ export default function FilePirep() {
                   </Popover>
                 </div>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="depIcao">Departure ICAO *</Label>
-                  <Input id="depIcao" placeholder="UUEE" maxLength={4} value={depIcao} onChange={(e) => setDepIcao(e.target.value.toUpperCase())} disabled={isLoading} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="arrIcao">Arrival ICAO *</Label>
-                  <Input id="arrIcao" placeholder="EGLL" maxLength={4} value={arrIcao} onChange={(e) => setArrIcao(e.target.value.toUpperCase())} disabled={isLoading} required />
-                </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="depIcao">Departure ICAO *</Label>
+                <Input id="depIcao" placeholder="UUEE" maxLength={4} value={depIcao} onChange={(e) => setDepIcao(e.target.value.toUpperCase())} disabled={isLoading} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="arrIcao">Arrival ICAO *</Label>
+                <Input id="arrIcao" placeholder="EGLL" maxLength={4} value={arrIcao} onChange={(e) => setArrIcao(e.target.value.toUpperCase())} disabled={isLoading} required />
               </div>
             </div>
             <div className="space-y-4">
@@ -306,29 +333,41 @@ export default function FilePirep() {
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" role="combobox" className="w-full justify-between">
-                        {aircraftIcao ? availableAircraft?.find(ac => String(ac.icao_code).toUpperCase() === aircraftIcao)?.name + ` (${aircraftIcao})` || aircraftIcao : "Select aircraft"}
+                        {/* Safe label — uses pre-computed map, NO inline .find() */}
+                        {triggerLabel}
                         <Plane className="ml-2 h-4 w-4 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0">
                       <Command>
-                        <CommandInput placeholder="Search aircraft..." value={aircraftSearch} onValueChange={setAircraftSearch} />
+                        <CommandInput
+                          placeholder="Search aircraft..."
+                          value={aircraftSearch}
+                          onValueChange={setAircraftSearch}
+                        />
                         <CommandList>
                           <CommandEmpty>No aircraft found.</CommandEmpty>
                           <CommandGroup>
-                            {availableAircraft?.map((ac) => (
-                              <CommandItem
-                                key={ac.icao_code}
-                                value={`${ac.name} ${ac.icao_code} ${ac.livery || ""}`}
-                                onSelect={() => {
-                                  setAircraftIcao(String(ac.icao_code).toUpperCase());
-                                  setAircraftSearch("");
-                                }}
-                              >
-                                <Plane className="mr-2 h-4 w-4" />
-                                {ac.name} ({String(ac.icao_code).toUpperCase()}){ac.livery ? ` - ${ac.livery}` : ""}
-                              </CommandItem>
-                            ))}
+                            {availableAircraft.map((ac) => {
+                              const icao = String(ac.icao_code).toUpperCase();
+                              const label = ac.livery
+                                ? `${ac.name} (${icao}) - ${ac.livery}`
+                                : `${ac.name} (${icao})`;
+                              return (
+                                <CommandItem
+                                  key={ac.id}
+                                  value={`${ac.name} ${icao} ${ac.livery || ""}`}
+                                  onSelect={() => {
+                                    setAircraftIcao(icao);
+                                    setSelectedAircraftLabel(label);
+                                    setAircraftSearch("");
+                                  }}
+                                >
+                                  <Plane className="mr-2 h-4 w-4" />
+                                  {label}
+                                </CommandItem>
+                              );
+                            })}
                           </CommandGroup>
                         </CommandList>
                       </Command>
@@ -349,7 +388,7 @@ export default function FilePirep() {
                   )}
                   {!isEventOrRotw && !showAllAircraft && unlockedAircraftIcaos && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Aircraft restricted by your rank ({availableAircraft?.length || 0} available). Events & ROTW flights bypass restrictions.
+                      Aircraft restricted by your rank ({availableAircraft.length} available). Events & ROTW flights bypass restrictions.
                     </p>
                   )}
                 </div>

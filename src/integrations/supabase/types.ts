@@ -538,36 +538,6 @@ export type Database = {
         }
         Relationships: []
       }
-      bonus_tiers: {
-        Row: {
-          card_image_url: string | null
-          created_at: string
-          id: string
-          min_hours: number
-          name: string
-          sort_order: number
-          text_color: string
-        }
-        Insert: {
-          card_image_url?: string | null
-          created_at?: string
-          id?: string
-          min_hours?: number
-          name: string
-          sort_order?: number
-          text_color?: string
-        }
-        Update: {
-          card_image_url?: string | null
-          created_at?: string
-          id?: string
-          min_hours?: number
-          name?: string
-          sort_order?: number
-          text_color?: string
-        }
-        Relationships: []
-      }
       challenge_completions: {
         Row: {
           challenge_id: string
@@ -1037,35 +1007,6 @@ export type Database = {
           vatsim_id?: string | null
         }
         Relationships: []
-      }
-      pilot_bonus_cards: {
-        Row: {
-          card_number: string
-          created_at: string
-          id: string
-          pilot_id: string
-        }
-        Insert: {
-          card_number: string
-          created_at?: string
-          id?: string
-          pilot_id: string
-        }
-        Update: {
-          card_number?: string
-          created_at?: string
-          id?: string
-          pilot_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pilot_bonus_cards_pilot_id_fkey"
-            columns: ["pilot_id"]
-            isOneToOne: true
-            referencedRelation: "pilots"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       recruitment_exam_sessions: {
         Row: {

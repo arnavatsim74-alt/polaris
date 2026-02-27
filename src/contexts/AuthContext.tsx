@@ -3,9 +3,11 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { PENDING_APPROVAL_MESSAGE } from "@/lib/authMessages";
 import { getDiscordProfile } from "@/lib/discordIdentity";
+import { preloadDashboardData } from "@/lib/preload";
 
 interface Pilot {
   id: string;
+  user_id?: string;
   pid: string;
   full_name: string;
   avatar_url: string | null;
@@ -91,6 +93,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchPilotData = async (userId: string, authUser?: User) => {
+    if (pilot?.id && pilot.user_id === userId) {
+      return;
+    }
     setIsPilotLoading(true);
     try {
       const { data: pilotData, error: pilotError } = await supabase
@@ -114,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setPilot({
           id: pilotData.id,
+          user_id: pilotData.user_id,
           pid: pilotData.pid,
           full_name: pilotData.full_name,
           avatar_url: pilotData.avatar_url || getDiscordAvatarUrl(authUser || null),
@@ -124,6 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           total_pireps: pilotData.total_pireps || 0,
           current_rank: pilotData.current_rank || "cadet",
         });
+
+        preloadDashboardData(pilotData.id);
       }
 
       const { data: roleData } = await supabase
@@ -174,10 +182,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
         if (event === "SIGNED_OUT" || !session?.user) {
+          setSession(null);
+          setUser(null);
           setPilot(null);
           setIsAdmin(false);
           setIsPilotLoading(false);
@@ -185,27 +192,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (event === "TOKEN_REFRESHED") {
+          setSession(session);
+          setUser(session.user);
           return;
         }
 
-        if (session?.user) {
+        setSession(session);
+        setUser(session.user);
+
+        if (session?.user && lastLoadedUserIdRef.current !== session.user.id) {
           setIsPilotLoading(true);
           setTimeout(async () => {
             await fetchPilotData(session.user.id, session.user);
+            lastLoadedUserIdRef.current = session.user.id;
             await tryAdminSetup(session);
           }, 0);
         }
-
-        if (event === "SIGNED_IN" && lastLoadedUserIdRef.current === session.user.id) {
-          return;
-        }
-
-        setIsPilotLoading(true);
-        setTimeout(async () => {
-          await fetchPilotData(session.user.id, session.user);
-          lastLoadedUserIdRef.current = session.user.id;
-          await tryAdminSetup(session);
-        }, 0);
       }
     );
 

@@ -55,6 +55,7 @@ export default function Dashboard() {
       return data || [];
     },
     enabled: !!pilot?.id,
+    refetchInterval: 30_000,
   });
 
   const { data: streak } = useQuery({
@@ -69,6 +70,7 @@ export default function Dashboard() {
       return data;
     },
     enabled: !!pilot?.id,
+    refetchInterval: 60_000,
   });
 
   // Calculate approved flight hours from PIREPs (with multiplier)
@@ -84,6 +86,7 @@ export default function Dashboard() {
       return data?.reduce((sum, p) => sum + Number(p.flight_hours) * Number(p.multiplier || 1), 0) || 0;
     },
     enabled: !!pilot?.id,
+    refetchInterval: 60_000,
   });
 
   const formatFlightTime = (hours: number) => {

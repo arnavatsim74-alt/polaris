@@ -238,6 +238,8 @@ export default function AdminRoutes() {
       });
 
       const routesToParse: ParsedRoute[] = [];
+      let skippedRows = 0;
+      const skippedDetails: string[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         const values = parseCSVLine(lines[i], delimiter);
@@ -251,6 +253,14 @@ export default function AdminRoutes() {
         const rank = rankIdx >= 0 ? values[rankIdx] : "";
         const estFlightTimeRaw = estFlightTimeIdx >= 0 ? values[estFlightTimeIdx] : "0";
         const notes = notesIdx >= 0 ? values[notesIdx] : "";
+
+        if (!routeNumber || !depIcao || !arrIcao) {
+          skippedRows++;
+          if (skippedDetails.length < 10) {
+            skippedDetails.push(`Row ${i + 1}: ${routeNumber || '(empty)'} - ${depIcao || '(empty)'} -> ${arrIcao || '(empty)'}`);
+          }
+          continue;
+        }
 
         // Parse flight time (supports both minutes and HH:MM format)
         let estFlightTimeMinutes = 0;
@@ -282,6 +292,12 @@ export default function AdminRoutes() {
       if (routesToParse.length === 0) {
         toast.error("No valid routes found in CSV");
         return;
+      }
+
+      console.log(`CSV Import: ${routesToParse.length} routes parsed, ${skippedRows} rows skipped`);
+      if (skippedRows > 0) {
+        console.log("Skipped rows:", skippedDetails);
+        toast.info(`${routesToParse.length} routes ready to import (${skippedRows} rows skipped due to missing data)`);
       }
 
       // Show mapping dialog
@@ -365,7 +381,7 @@ export default function AdminRoutes() {
                 return attemptInsert(routes, true);
               }
             }
-            console.error(`Batch ${i / BATCH_SIZE + 1} failed:`, error);
+            console.error(`Batch ${i / BATCH_SIZE + 1} failed:`, error, "Routes:", batch.map(r => `${r.route_number} ${r.dep_icao}-${r.arr_icao}`));
             failedBatches++;
             continue;
           }
@@ -407,8 +423,10 @@ export default function AdminRoutes() {
 
       queryClient.invalidateQueries({ queryKey: ["admin-routes"] });
       
+      console.log(`Import complete: ${imported} imported, ${failedBatches} batches failed out of ${Math.ceil(routesToInsert.length / 25)}`);
+      
       if (failedBatches > 0) {
-        toast.warning(`${failedBatches} batch(es) failed. ${imported} of ${routesToInsert.length} routes imported.`);
+        toast.warning(`${failedBatches} batch(es) failed. ${imported} of ${routesToInsert.length} routes imported. Check console for details.`);
       } else {
         toast.success(`Successfully imported ${imported} routes`);
       }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,6 +47,8 @@ export default function AdminMembers() {
       return (data || []).map(r => ({ value: r.name, label: r.label }));
     },
   });
+
+  const rankValues = useMemo(() => new Set((rankOptions || []).map((r: any) => r.value)), [rankOptions]);
 
   const { data: adminRoles } = useQuery({
     queryKey: ["admin-roles"],
@@ -132,8 +134,8 @@ export default function AdminMembers() {
     const mins = Math.round(((Number(pilot.total_hours) || 0) - hours) * 60);
     const hasAdmin = adminRoles?.some((r: any) => r.user_id === pilot.user_id);
     setEditForm({
-      full_name: pilot.full_name,
-      pid: pilot.pid,
+      full_name: pilot.full_name || "",
+      pid: pilot.pid || "",
       total_hours: hours,
       total_hours_mins: mins,
       current_rank: pilot.current_rank || "cadet",
@@ -153,12 +155,13 @@ export default function AdminMembers() {
     });
   };
 
-  const filtered = pilots?.filter(
-    (p) =>
-      searchQuery === "" ||
-      p.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.pid.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = pilots?.filter((p) => {
+    if (searchQuery === "") return true;
+    const name = String(p.full_name || "").toLowerCase();
+    const pid = String(p.pid || "").toLowerCase();
+    const query = searchQuery.toLowerCase();
+    return name.includes(query) || pid.includes(query);
+  });
 
   if (!isAdmin) return <Navigate to="/" replace />;
 
@@ -308,14 +311,19 @@ export default function AdminMembers() {
               <div className="space-y-2">
                 <Label>Pilot Rank (To edit member must be manually ranked)</Label>
                 <Select
-                  value={editForm.current_rank}
+                  value={rankValues.has(editForm.current_rank) ? editForm.current_rank : undefined}
                   onValueChange={(v) => setEditForm({ ...editForm, current_rank: v })}
                   disabled={!editForm.manually_ranked}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select rank" />
                   </SelectTrigger>
                   <SelectContent>
+                    {!rankValues.has(editForm.current_rank) && editForm.current_rank ? (
+                      <SelectItem value={editForm.current_rank}>
+                        {editForm.current_rank.replace(/_/g, " ")}
+                      </SelectItem>
+                    ) : null}
                     {(rankOptions || []).map((r) => (
                       <SelectItem key={r.value} value={r.value}>
                         {r.label}

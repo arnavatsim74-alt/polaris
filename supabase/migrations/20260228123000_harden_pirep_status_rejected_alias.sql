@@ -10,7 +10,7 @@ ALTER TYPE public.pirep_status ADD VALUE IF NOT EXISTS 'rejected';
 
 UPDATE public.pireps
 SET status = 'denied'
-WHERE status::text = 'rejected';
+WHERE status = 'rejected';
 
 CREATE OR REPLACE FUNCTION public.normalize_pirep_status_rejected()
 RETURNS trigger

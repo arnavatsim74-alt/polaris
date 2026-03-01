@@ -46,12 +46,27 @@ export default function AdminROTW() {
   const { data: routes } = useQuery({
     queryKey: ["all-routes"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("routes")
-        .select("*")
-        .eq("is_active", true)
-        .order("route_number");
-      return data || [];
+      let allRoutes: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from("routes")
+          .select("*")
+          .eq("is_active", true)
+          .order("route_number")
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allRoutes = [...allRoutes, ...data];
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      return allRoutes;
     },
   });
 

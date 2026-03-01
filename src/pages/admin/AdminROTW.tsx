@@ -337,7 +337,7 @@ export default function AdminROTW() {
               <SelectTrigger>
                 <SelectValue placeholder="Select a route" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-72 overflow-y-auto">
                 {filteredRotwRoutes.map((route: any) => (
                   <SelectItem key={route.id} value={route.id}>
                     {route.route_number} — {route.dep_icao} → {route.arr_icao} ({route.aircraft_icao})
@@ -376,7 +376,7 @@ export default function AdminROTW() {
               <SelectTrigger>
                 <SelectValue placeholder="Select a route" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-72 overflow-y-auto">
                 {filteredFeaturedRoutes.map((route: any) => (
                   <SelectItem key={route.id} value={route.id}>
                     {route.route_number} — {route.dep_icao} → {route.arr_icao} ({route.aircraft_icao})

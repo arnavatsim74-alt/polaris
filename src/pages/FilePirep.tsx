@@ -77,11 +77,26 @@ export default function FilePirep() {
   const { data: aircraft } = useQuery({
     queryKey: ["aircraft"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("aircraft")
-        .select("id,icao_code,name,livery")
-        .order("name");
-      return data || [];
+      let allAircraft: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from("aircraft")
+          .select("id,icao_code,name,livery")
+          .order("name")
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allAircraft = [...allAircraft, ...data];
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      return allAircraft;
     },
   });
 

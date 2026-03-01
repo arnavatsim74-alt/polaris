@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Shield, Plus, Trash2, Star, Sparkles } from "lucide-react";
@@ -321,30 +322,47 @@ export default function AdminROTW() {
       </Card>
 
       {/* ROTW Assign Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) { setRotwRouteSearch(""); setSelectedRoute(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Route — {selectedDay !== null ? dayNames[selectedDay] : ""}</DialogTitle>
-            <DialogDescription>Select a route to feature on this day</DialogDescription>
+            <DialogDescription>Search and select a route to feature on this day</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Input
               value={rotwRouteSearch}
               onChange={(e) => setRotwRouteSearch(e.target.value)}
               placeholder="Search route number, ICAO, aircraft..."
+              autoFocus
             />
-            <Select value={selectedRoute} onValueChange={setSelectedRoute}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a route" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72 overflow-y-auto">
-                {filteredRotwRoutes.map((route: any) => (
-                  <SelectItem key={route.id} value={route.id}>
-                    {route.route_number} — {route.dep_icao} → {route.arr_icao} ({route.aircraft_icao})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {selectedRoute && (() => {
+              const r = routes?.find((r: any) => r.id === selectedRoute);
+              return r ? (
+                <div className="flex items-center justify-between px-3 py-2 rounded-md bg-primary/10 border border-primary/30 text-sm">
+                  <span className="font-medium">{r.route_number} — {r.dep_icao} → {r.arr_icao} ({r.aircraft_icao})</span>
+                  <button onClick={() => setSelectedRoute("")} className="text-muted-foreground hover:text-foreground ml-2">✕</button>
+                </div>
+              ) : null;
+            })()}
+            <ScrollArea className="h-64 rounded-md border">
+              <div className="p-1">
+                {filteredRotwRoutes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No routes found</p>
+                ) : (
+                  filteredRotwRoutes.map((route: any) => (
+                    <button
+                      key={route.id}
+                      onClick={() => setSelectedRoute(route.id)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors ${selectedRoute === route.id ? "bg-primary/10 font-medium" : ""}`}
+                    >
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{route.route_number}</span>
+                      {route.dep_icao} → {route.arr_icao}
+                      <span className="text-muted-foreground ml-1">({route.aircraft_icao})</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
@@ -360,7 +378,7 @@ export default function AdminROTW() {
       </Dialog>
 
       {/* Featured Route Dialog */}
-      <Dialog open={isFeaturedDialogOpen} onOpenChange={setIsFeaturedDialogOpen}>
+      <Dialog open={isFeaturedDialogOpen} onOpenChange={(open) => { setIsFeaturedDialogOpen(open); if (!open) { setFeaturedRouteSearch(""); setFeaturedRouteId(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Featured Route</DialogTitle>
@@ -371,19 +389,36 @@ export default function AdminROTW() {
               value={featuredRouteSearch}
               onChange={(e) => setFeaturedRouteSearch(e.target.value)}
               placeholder="Search route number, ICAO, aircraft..."
+              autoFocus
             />
-            <Select value={featuredRouteId} onValueChange={setFeaturedRouteId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a route" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72 overflow-y-auto">
-                {filteredFeaturedRoutes.map((route: any) => (
-                  <SelectItem key={route.id} value={route.id}>
-                    {route.route_number} — {route.dep_icao} → {route.arr_icao} ({route.aircraft_icao})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {featuredRouteId && (() => {
+              const r = routes?.find((r: any) => r.id === featuredRouteId);
+              return r ? (
+                <div className="flex items-center justify-between px-3 py-2 rounded-md bg-primary/10 border border-primary/30 text-sm">
+                  <span className="font-medium">{r.route_number} — {r.dep_icao} → {r.arr_icao} ({r.aircraft_icao})</span>
+                  <button onClick={() => setFeaturedRouteId("")} className="text-muted-foreground hover:text-foreground ml-2">✕</button>
+                </div>
+              ) : null;
+            })()}
+            <ScrollArea className="h-64 rounded-md border">
+              <div className="p-1">
+                {filteredFeaturedRoutes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No routes found</p>
+                ) : (
+                  filteredFeaturedRoutes.map((route: any) => (
+                    <button
+                      key={route.id}
+                      onClick={() => setFeaturedRouteId(route.id)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors ${featuredRouteId === route.id ? "bg-primary/10 font-medium" : ""}`}
+                    >
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{route.route_number}</span>
+                      {route.dep_icao} → {route.arr_icao}
+                      <span className="text-muted-foreground ml-1">({route.aircraft_icao})</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsFeaturedDialogOpen(false)}>Cancel</Button>

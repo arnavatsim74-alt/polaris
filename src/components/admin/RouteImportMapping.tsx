@@ -45,6 +45,14 @@ const normalizeRank = (rank: string): string | null => {
   return rankMap[normalized] || null;
 };
 
+/**
+ * Render a UI for mapping parsed route CSV values (aircraft and ranks) to system values before import.
+ *
+ * @param parsedRoutes - Parsed routes from the CSV that may contain raw aircraft and rank strings to map.
+ * @param onComplete - Called with the array of mapped routes when the user finalizes the import.
+ * @param onCancel - Called when the user cancels the mapping process.
+ * @returns A React element that displays aircraft and rank mapping controls and finalization actions.
+ */
 export function RouteImportMapping({ parsedRoutes, onComplete, onCancel }: RouteImportMappingProps) {
   // Extract unique aircraft strings from CSV, supporting multi-aircraft values per route
   const uniqueAircraftStrings = [...new Set(parsedRoutes.flatMap((r) => splitRouteAircraft(r.aircraft_icao)))];

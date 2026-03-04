@@ -42,12 +42,52 @@ export default function Leaderboard() {
   const { data: pilots, isLoading } = useQuery({
     queryKey: ["leaderboard", period],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("pilots")
-        .select("id, pid, full_name, total_hours, current_rank")
-        .order("total_hours", { ascending: false })
-        .limit(100);
-      return data || [];
+      // For "all time" — just rank by total_hours on the pilots table
+      if (period === "all") {
+        const { data } = await supabase
+          .from("pilots")
+          .select("id, pid, full_name, total_hours, current_rank")
+          .order("total_hours", { ascending: false })
+          .limit(100);
+        return data || [];
+      }
+
+      // For time-filtered periods — sum hours from pireps within the window
+      const now = new Date();
+      const cutoff = new Date();
+      if (period === "month") cutoff.setDate(now.getDate() - 30);
+      if (period === "week") cutoff.setDate(now.getDate() - 7);
+
+      const { data: pireps } = await supabase
+        .from("pireps")
+        .select("pilot_id, flight_hours, pilots!pireps_pilot_id_fkey(id, pid, full_name, current_rank)")
+        .eq("status", "approved")
+        .gte("flight_date", cutoff.toISOString().split("T")[0]);
+
+      if (!pireps) return [];
+
+      // Aggregate hours per pilot
+      const map = new Map<string, { id: string; pid: string; full_name: string; current_rank: string; total_hours: number }>();
+      for (const p of pireps) {
+        const pilot = p.pilots as any;
+        if (!pilot) continue;
+        const existing = map.get(pilot.id);
+        if (existing) {
+          existing.total_hours += Number(p.flight_hours) || 0;
+        } else {
+          map.set(pilot.id, {
+            id: pilot.id,
+            pid: pilot.pid,
+            full_name: pilot.full_name,
+            current_rank: pilot.current_rank,
+            total_hours: Number(p.flight_hours) || 0,
+          });
+        }
+      }
+
+      return Array.from(map.values())
+        .sort((a, b) => b.total_hours - a.total_hours)
+        .slice(0, 100);
     },
   });
 
@@ -76,8 +116,8 @@ export default function Leaderboard() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Time</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
+            <SelectItem value="month">Last 30 Days</SelectItem>
+            <SelectItem value="week">Last 7 Days</SelectItem>
           </SelectContent>
         </Select>
       </div>

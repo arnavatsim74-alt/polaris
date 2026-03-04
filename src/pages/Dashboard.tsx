@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Clock, FileText, Award, Hash, Flame, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { isSameDay } from "date-fns";
+import { useEffect } from "react";
 import aeroflotBanner from "@/assets/aeroflot-banner.jpg";
 import { TodayROTW } from "@/components/dashboard/TodayROTW";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
@@ -19,6 +20,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 export default function Dashboard() {
   const { pilot } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: settings } = useQuery({
     queryKey: ["site-settings"],
@@ -41,6 +43,48 @@ export default function Dashboard() {
       return data || [];
     },
   });
+
+  // Fetch pilot data directly from Supabase so admin manual edits are always reflected
+  const { data: pilotData } = useQuery({
+    queryKey: ["pilot-realtime", pilot?.id],
+    queryFn: async () => {
+      if (!pilot?.id) return null;
+      const { data } = await supabase
+        .from("pilots")
+        .select("total_hours, total_pireps, current_rank, full_name, pid")
+        .eq("id", pilot.id)
+        .single();
+      return data;
+    },
+    enabled: !!pilot?.id,
+    refetchInterval: 30_000,
+  });
+
+  // Real-time subscription: invalidate pilot data whenever admin updates the pilots table
+  useEffect(() => {
+    if (!pilot?.id) return;
+
+    const channel = supabase
+      .channel(`pilot-dashboard-${pilot.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "pilots",
+          filter: `id=eq.${pilot.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["pilot-realtime", pilot.id] });
+          queryClient.invalidateQueries({ queryKey: ["approved-flight-hours", pilot.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [pilot?.id, queryClient]);
 
   const { data: recentPireps, isLoading: pirepsLoading } = useQuery({
     queryKey: ["recent-pireps", pilot?.id],
@@ -100,9 +144,17 @@ export default function Dashboard() {
     return rank?.label || rankName.replace(/_/g, " ");
   };
 
-  const totalHours = Number(approvedHours ?? pilot.total_hours ?? 0);
+  // Prefer live-fetched pilotData over AuthContext pilot for fields that admins can edit
+  const livePilot = pilotData ?? pilot;
+
+  // Use the higher of: PIREP-computed hours vs manually set total_hours (admin override wins if larger)
+  const totalHours = Math.max(
+    Number(approvedHours ?? 0),
+    Number(livePilot?.total_hours ?? 0)
+  );
+
   const sortedRanks = [...(ranks || [])].sort((a, b) => a.order_index - b.order_index);
-  const currentRankConfig = sortedRanks.find((r) => r.name === pilot.current_rank);
+  const currentRankConfig = sortedRanks.find((r) => r.name === livePilot?.current_rank);
   const nextRankConfig = sortedRanks.find((r) => r.order_index > (currentRankConfig?.order_index ?? -1));
   const currentMin = Number(currentRankConfig?.min_hours ?? 0);
   const nextMin = Number(nextRankConfig?.min_hours ?? currentMin);
@@ -211,7 +263,7 @@ export default function Dashboard() {
                   Rank
                 </p>
                 <p className="text-2xl font-bold mt-1 capitalize">
-                  {getRankLabel(pilot.current_rank)}
+                  {getRankLabel(livePilot?.current_rank ?? pilot.current_rank)}
                 </p>
               </div>
               <Award className="h-5 w-5 text-muted-foreground" />
@@ -227,7 +279,7 @@ export default function Dashboard() {
                   Flight Time
                 </p>
                 <p className="text-2xl font-bold mt-1">
-                  {formatFlightTime(approvedHours ?? pilot.total_hours)}
+                  {formatFlightTime(totalHours)}
                 </p>
               </div>
               <Clock className="h-5 w-5 text-muted-foreground" />
@@ -242,7 +294,7 @@ export default function Dashboard() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">
                   PIREPs
                 </p>
-                <p className="text-2xl font-bold mt-1">{pilot.total_pireps}</p>
+                <p className="text-2xl font-bold mt-1">{livePilot?.total_pireps ?? pilot.total_pireps}</p>
               </div>
               <FileText className="h-5 w-5 text-muted-foreground" />
             </div>
@@ -256,7 +308,7 @@ export default function Dashboard() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">
                   Callsign
                 </p>
-                <p className="text-2xl font-bold mt-1">{pilot.pid}</p>
+                <p className="text-2xl font-bold mt-1">{livePilot?.pid ?? pilot.pid}</p>
               </div>
               <Hash className="h-5 w-5 text-muted-foreground" />
             </div>

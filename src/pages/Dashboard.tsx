@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, FileText, Award, Hash, Flame, Plus } from "lucide-react";
+import { Clock, FileText, Award, Hash, Flame, Plus, Users, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { isSameDay } from "date-fns";
 import { useEffect } from "react";
@@ -117,17 +117,24 @@ export default function Dashboard() {
     refetchInterval: 60_000,
   });
 
-  // Calculate approved flight hours from PIREPs (with multiplier)
-  const { data: approvedHours } = useQuery({
+  // Calculate approved flight hours, passengers, and baggage from PIREPs
+  const { data: pirepStats } = useQuery({
     queryKey: ["approved-flight-hours", pilot?.id],
     queryFn: async () => {
-      if (!pilot?.id) return 0;
+      if (!pilot?.id) return { hours: 0, pax: 0, baggage: 0 };
       const { data } = await supabase
         .from("pireps")
-        .select("flight_hours, multiplier")
+        .select("flight_hours, multiplier, pax, cargo_kg, flight_type")
         .eq("pilot_id", pilot.id)
         .eq("status", "approved");
-      return data?.reduce((sum, p) => sum + Number(p.flight_hours) * Number(p.multiplier || 1), 0) || 0;
+      
+      const hours = data?.reduce((sum, p) => sum + Number(p.flight_hours) * Number(p.multiplier || 1), 0) || 0;
+      const pax = data?.reduce((sum, p) => sum + Number(p.pax || 0), 0) || 0;
+      const baggage = data?.reduce((sum, p) => {
+        return p.flight_type === "passenger" ? sum + Number(p.cargo_kg || 0) : sum;
+      }, 0) || 0;
+
+      return { hours, pax, baggage };
     },
     enabled: !!pilot?.id,
     refetchInterval: 60_000,
@@ -149,7 +156,7 @@ export default function Dashboard() {
 
   // Use the higher of: PIREP-computed hours vs manually set total_hours (admin override wins if larger)
   const totalHours = Math.max(
-    Number(approvedHours ?? 0),
+    Number(pirepStats?.hours ?? 0),
     Number(livePilot?.total_hours ?? 0)
   );
 
@@ -254,7 +261,7 @@ export default function Dashboard() {
       <TodayROTW />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
@@ -311,6 +318,34 @@ export default function Dashboard() {
                 <p className="text-2xl font-bold mt-1">{livePilot?.pid ?? pilot.pid}</p>
               </div>
               <Hash className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Passengers Transported
+                </p>
+                <p className="text-2xl font-bold mt-1">{pirepStats?.pax || 0}</p>
+              </div>
+              <Users className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Baggage Handled
+                </p>
+                <p className="text-2xl font-bold mt-1">{pirepStats?.baggage || 0} kg</p>
+              </div>
+              <Package className="h-5 w-5 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
